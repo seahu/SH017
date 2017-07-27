@@ -1,0 +1,50 @@
+{block content}
+
+<div class="services">
+<h1>Aviable Services</H1>
+{foreach $services as $service}
+	<div class="service">
+		<table>
+			<tr>
+				<td>
+					<div class="service_title">
+						{$service['title']}
+					</div>
+					{if $service['status']==true}
+						<div class="service_run">
+						 run
+						</div> 
+					{else} 
+						<div class="service_no_run">
+						 no run
+						</div> 
+					{/if}
+					<div class="service_preview">
+						{if $service['status']==true}
+							<a href="{$service['link']}"><image src="{$basePath}/images/{$service['preview']}"></a>
+						{else}
+							<image src="{$basePath}/images/{$service['preview']}">
+						{/if}
+					</div>
+					<div class="service_logo">
+						<a href="{$service['homePage']}"><image src="{$basePath}/images/{$service['logo']}"></a>
+					</div>
+				</td>
+				{if $user->loggedIn}
+					<td valign="top">
+						<div class="service_start_stop">
+							{if $service['status']==true}
+								<img src="{$basePath}/images/start-grey.png">
+								<a n:href="Servicies:disableServicie $service['id']"><img src="{$basePath}/images/stop.png"></a>
+							{else}
+								<a n:href="Servicies:enableServicie $service['id']"><img src="{$basePath}/images/start.png"></a>
+								<img src="{$basePath}/images/stop-grey.png">
+							{/if}
+						</div>
+					</td>
+				{/if}
+			</tr>
+		</table>
+	</div>
+{/foreach}
+</div>

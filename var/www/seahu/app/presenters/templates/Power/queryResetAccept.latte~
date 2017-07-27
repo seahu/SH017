@@ -1,0 +1,9 @@
+{block content}
+Are you sure do <b>restar</b>.
+<table>
+	<tr>
+		<td><a n:href="Power:" class="mybutton">← Back</a></td>
+		<td></td><td></td><td></td>
+		<td><a n:href="Power:restart" class="mybutton">Yes</a></td>
+	</tr>
+</table>

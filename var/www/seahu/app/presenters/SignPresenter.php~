@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Presenters;
+
+use Nette;
+use App\Forms\SignFormFactory;
+use App\Forms\ChangeFormFactory;
+
+class SignPresenter extends BasePresenter
+{
+	/** @var SignFormFactory @inject */
+	public $factory;
+
+	/** @var ChangeFormFactory @inject */	
+	public $factory1;
+
+
+	/**
+	 * Sign-in form factory.
+	 * @return Nette\Application\UI\Form
+	 */
+	protected function createComponentSignInForm()
+	{
+		$form = $this->factory->create();
+		$form->onSuccess[] = function ($form) {
+			$form->getPresenter()->flashMessage('Sucessfully login.');
+			$form->getPresenter()->redirect('Menu:');
+		};
+		return $form;
+	}
+
+	/**
+	 * Change password form factory.
+	 * @return Nette\Application\UI\Form
+	 */
+	protected function createComponentChangeForm()
+	{
+		$form = $this->factory1->create();
+		$form->onSuccess[] = function ($form) {
+			$form->getPresenter()->flashMessage('Password sucessfully changed.');
+			$form->getPresenter()->redirect('Menu:');
+		};
+		return $form;
+	}
+
+
+	public function actionOut()
+	{
+		$section = $this->getSession('mySection'); // returns SessionSection with given name
+		unset($section->agree);
+		$this->getUser()->logout();
+		$this->flashMessage('Sucessfully logout.');
+		$this->redirect('Menu:');
+	}
+
+}

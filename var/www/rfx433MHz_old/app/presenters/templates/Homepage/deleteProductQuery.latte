@@ -1,0 +1,18 @@
+{block content}
+<div id="ser2net">
+	<h2> You sure to delete next item: </h2>
+	</p>
+		<table>
+			<tr>
+				<td><image src="{$basePath}/{$device['maker_img']}" width="70px"><td>
+				<td><image src="{$basePath}/{$device['product_img'] }" height="50px"></td>
+				<td> {$device['product']}<td>
+				<td>{$device['name']}</td>
+			</tr>
+		</table>
+	</p>
+	<p>
+		<a n:href="Homepage:" class="mybutton"> No</a>
+		<a n:href="Homepage:DeleteProduct $id" class="mybutton"> Yes</a>
+	</p>
+</div>

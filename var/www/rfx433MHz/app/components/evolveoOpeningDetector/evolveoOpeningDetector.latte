@@ -1,0 +1,51 @@
+<div class="box">
+	<table>
+		<tr>
+			<td>
+				<table class="small">
+					<tr>
+						<td>
+							<a n:href="AlarmButton!"  class="mybutton_{$config->alarm->status=="ON" ? "ON" : "OFF"}"> ON </a>
+						</td>
+						<td>
+							<div class="last_date">
+								last:
+								{$config->alarm->lastContact|date:'Y-m-d'}
+								{$config->alarm->lastContact|date:'H:i:s'}
+							</div>
+						</td>
+						<td></td>
+						<td>{$config->alarm->name}</td><br>
+					</tr>
+					<tr>
+						<td>
+							<a n:href="PenetrateButton!"  class="mybutton_{$config->penetrate->status=="ON" ? "ON" : "OFF"}"> ON </a>
+						</td>
+						<td>
+							<div class="last_date">
+								last:
+								{$config->penetrate->lastContact|date:'Y-m-d'}
+								{$config->penetrate->lastContact|date:'H:i:s'}
+							</div>
+						</td>
+						<td></td>
+						<td>{$config->penetrate->name}</td><br>
+					</tr>					
+					<tr>
+						<td>
+							<a n:href="ResetButton!"  class="mybutton_OFF" title="Reset status alarm, status penetrate and alarm battery level."> RESET </a><br>
+						</td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>					
+				</table>
+			</td>
+			<td>
+				<a n:href="ScanRFXCode!" class="mybutton_1"> Scan code </a><br>
+				<a n:href="Rename!" class="mybutton_1"> Set Name </a><br>
+				<a n:href="AddDomoticz!" class="mybutton_1"> Add Domoticz </a><br>
+			</td>
+		</tr>
+	</table>
+</div>

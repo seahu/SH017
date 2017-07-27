@@ -1,0 +1,14 @@
+/dev/ttyUSB1
+300
+defaultroute
+replacedefaultroute
+usepeerdns
+nodetach
+crtscts
+lock
+noauth
+local
+noipdefault
+debug
+nodeflate
+connect "/usr/sbin/chat -v -f /etc/chatscripts/Provider"

@@ -1,0 +1,38 @@
+[2016-10-03 00-18-11] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-18-11] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-18-11] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-18-11] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-18-11] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-19-37] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-19-37] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-19-37] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-19-37] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-19-37] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-45] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-45] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-45] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-45] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-45] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-51] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-51] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-51] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-51] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-51] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-52] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-52] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-52] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-52] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-52] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-54] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-54] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-54] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-54] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-54] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-56] PHP Notice: Undefined offset: 1 in /var/www/pi/app/presenters/NetPresenter.php:91  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-56] PHP Notice: Undefined offset: 2 in /var/www/pi/app/presenters/NetPresenter.php:92  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-56] PHP Notice: Undefined offset: 3 in /var/www/pi/app/presenters/NetPresenter.php:93  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-56] PHP Notice: Undefined offset: 4 in /var/www/pi/app/presenters/NetPresenter.php:94  @  http://192.168.2.116/pi/net/ 
+[2016-10-03 00-20-56] PHP Notice: Undefined offset: 5 in /var/www/pi/app/presenters/NetPresenter.php:95  @  http://192.168.2.116/pi/net/ 
+[2016-11-12 15-28-09] PHP Warning: socket_connect(): unable to connect [111]: Connection refused in /var/www/seahu/app/presenters/HwPresenter.php:177  @  http://192.168.2.118/seahu/hw/ 
+[2016-11-12 15-28-14] PHP Warning: socket_connect(): unable to connect [111]: Connection refused in /var/www/seahu/app/presenters/HwPresenter.php:177  @  http://192.168.2.118/seahu/hw/ 
+[2016-11-12 15-28-25] PHP Warning: socket_connect(): unable to connect [111]: Connection refused in /var/www/seahu/app/presenters/HwPresenter.php:177  @  http://192.168.2.118/seahu/hw/ 

@@ -1,0 +1,23 @@
+<div class="box">
+	<table>
+		<tr>
+			<td>
+				{if $config->scanning==""}
+					<a n:href="StartScanRFXCode!" class="mybutton_1"> Start scan</a><br>
+						actual family code:<br>
+						{$config->familyCode}<br>
+						actual button code:<br>
+						{$config->buttonCode}
+						
+				{else}
+					<a n:href="StopScanRFXCode!" class="mybutton_1"> Stop scan </a><br>
+				{/if}
+			</td>
+			<td>
+				<a n:href="Control!" class="mybutton_1"> Control </a><br>
+				<a n:href="Rename!" class="mybutton_1"> Set Name </a><br>
+				<a n:href="AddDomoticz!" class="mybutton_1"> Add Domoticz </a><br>
+			</td>
+		</tr>
+	</table>
+</div>

@@ -1,0 +1,7 @@
+lcd menu is so fast twist python scripts inspired by adafruit and modify by Ondrej Lycka for use with seahu SH017 PLC computer based on raspberryPI.
+Some interest:
+
+script do not use display directly, bat trough local tcp service on tcp port 10000 (service: /opt/seahu/service_graph_lcd.py this service must run before run lcd menu script)
+Reason is share display with more servvices.
+
+/etc/seahu/lcd_menu.cfg - contain 1 lcd run after start system, 0 no start (default seting = go back run after start)

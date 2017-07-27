@@ -1,0 +1,7 @@
+{block content}
+
+{control updateWifiForm}
+
+
+
+<p><a n:href="Wifi:" class="button">← Back</a></p>

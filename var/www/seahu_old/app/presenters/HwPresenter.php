@@ -1,0 +1,192 @@
+<?php
+
+namespace App\Presenters;
+
+use Nette;
+use App\Model;
+use  Nette\Application\UI;
+use Nette\Application\UI\Form;
+use Tracy\Debugger;
+
+
+class HwPresenter extends BasePresenter
+{
+	//protected i2cAddr1=0x20; // my frist devolepment baseboard i2c address
+	//protected i2cAddr1=0x24; // my frist devolepment displayboard i2c address
+	protected $i2cAddr1=0x38; // production baseboard i2c address
+	protected $i2cAddr2=0x3c; // production displayboard i2c address
+	
+	public function renderQueryAcceptHwControl()
+	{
+	}
+
+	public function renderDefault()
+	{
+		$output=shell_exec ("/usr/bin/sudo /usr/sbin/i2cget -y 1 ".$this->i2cAddr1);
+		//Debugger::barDump($output, 'output');
+		//Debugger::barDump(strlen($output), 'len');
+		$val=substr($output, 0, 4);
+		Debugger::barDump($val, 'val str1');
+		$val=intval(hexdec($val));
+		//Debugger::barDump($val, 'val int');
+		//relays
+		if (($val&0x01)!=0) $this->template->relay1=false; //off
+		else  $this->template->relay1=true; //on
+		if (($val&0x02)!=0) $this->template->relay2=false;
+		else  $this->template->relay2=true;
+		if (($val&0x04)!=0) $this->template->relay3=false;
+		else  $this->template->relay3=true;
+		if (($val&0x08)!=0) $this->template->relay4=false;
+		else  $this->template->relay4=true;
+		//Debugger::barDump($this->template->relay1, 'relay1');
+		//Debugger::barDump($this->template->relay2, 'relay2');
+		//Debugger::barDump($this->template->relay3, 'relay3');
+		//Debugger::barDump($this->template->relay4, 'relay4');
+		// imputs
+		if (($val&0x10)!=0) $this->template->input1=false;
+		else  $this->template->input1=true;
+		if (($val&0x20)!=0) $this->template->input2=false;
+		else  $this->template->input2=true;
+		// outputs
+		if (($val&0x40)!=0) $this->template->output1=false;
+		else  $this->template->output1=true;
+		if (($val&0x80)!=0) $this->template->output2=false;
+		else  $this->template->output2=true;
+		Debugger::barDump("/usr/bin/sudo /usr/sbin/i2cget -y 1 ".$this->i2cAddr2, 'cmd');
+		$output=shell_exec ("/usr/bin/sudo /usr/sbin/i2cget -y 1 ".$this->i2cAddr2);
+		Debugger::barDump($output, 'output');
+		$val=substr($output, 0, 4);
+		Debugger::barDump($val, 'val str2');
+		$val=intval(hexdec($val));
+		//keys
+		if (($val&0x01)!=0) $this->template->key_left=false; // key free
+		else  $this->template->key_left=true; // key push
+		if (($val&0x02)!=0) $this->template->key_right=false;
+		else  $this->template->key_right=true;
+		if (($val&0x04)!=0) $this->template->key_up=false;
+		else  $this->template->key_up=true;
+		if (($val&0x08)!=0) $this->template->key_down=false;
+		else  $this->template->key_down=true;
+		if (($val&0x10)!=0) $this->template->key_ok=false;
+		else  $this->template->key_ok=true;
+		if (($val&0x20)!=0) $this->template->key_esc=false;
+		else  $this->template->key_esc=true;
+		// backlight display
+		if (($val&0x40)!=0) $this->template->backlight=false;
+		else  $this->template->backlight=true;
+		// dispaly text
+		$display=$this->readDisplay();
+		$display=explode("\n", $display );
+		$this->template->display=$display;
+	}
+
+	//vyber dospupnych siti
+	public function renderControl($button="", $status=false )
+	{
+		// need agrement for manualy control
+		$section = $this->getSession('mySection'); // returns SessionSection with given name
+		if ($section->agree!=true){
+			$this->redirect('Hw:queryAcceptHwControl');
+		}
+		
+		// set relay
+		if ($button=="relay1") $this->set_i2c(0x01, !$status);  //need change
+		if ($button=="relay2") $this->set_i2c(0x02, !$status);  //need change
+		if ($button=="relay3") $this->set_i2c(0x04, !$status);  //need change
+		if ($button=="relay4") $this->set_i2c(0x08, !$status);  //need change
+		//set output
+		if ($button=="output1") $this->set_i2c(0x40, !$status);  //need change
+		if ($button=="output2") $this->set_i2c(0x80, !$status);  //need change
+		//set keys
+		/*
+		if ($button=="key_left") $this->set_i2c(0x01, !$status, $this->i2cAddr2);  //need change
+		if ($button=="key_right") $this->set_i2c(0x02, !$status, $this->i2cAddr2);  //need change
+		if ($button=="key_up") $this->set_i2c(0x04, !$status, $this->i2cAddr2);  //need change
+		if ($button=="key_down") $this->set_i2c(0x08, !$status, $this->i2cAddr2);  //need change
+		if ($button=="key_ok") $this->set_i2c(0x10, !$status, $this->i2cAddr2);  //need change
+		if ($button=="key_esc") $this->set_i2c(0x20, !$status, $this->i2cAddr2);  //need change
+		*/
+		// newly serve key as push no as switch
+		$this->pushKey($button);
+		//set backlight
+		if ($button=="backlight") $this->set_i2c(0x40, !$status, $this->i2cAddr2);  //need change
+	
+		// napln stavove promenne modulu ty jsou stejne jako u defaut zobrazeni
+		$this->renderDefault();
+		//Debugger::barDump($this->template->relay1, 'raly1');
+		
+	}
+
+	//vyber dospupnych siti
+	public function renderAccept($button="", $status=false )
+	{
+		$section = $this->getSession('mySection'); // returns SessionSection with given name
+		$section->agree=true;
+		$this->flashMessage('Be carefull when manualy controll Hardware.');
+		$this->redirect('Hw:control');		
+	}
+	
+	// push key (0,5 sec pusch and then pop)
+	protected function pushKey($key)
+	{
+		if ($key=="key_left") $mask=0x01;
+		else if ($key=="key_right") $mask=0x02;
+		else if ($key=="key_up") $mask=0x04;
+		else if ($key=="key_down") $mask=0x08;
+		else if ($key=="key_ok") $mask=0x10;
+		else if ($key=="key_esc") $mask=0x20;
+		else return;
+		$this->set_i2c($mask, true, $this->i2cAddr2); // push button
+		usleep(500000); // sleep 0,5 sec
+		$this->set_i2c($mask, false, $this->i2cAddr2); // pop button
+	}
+	
+	//zapsani bitu do i2c registru 
+	protected function set_i2c($mask, $status, $i2cAddr=null)
+	{
+		if (!$this->getUser()->isLoggedIn()) {
+			$this->error('For edit you must be login.');
+			//$this->redirect('Wifi:'); //pri vyrvareni component neni dostupne presmerovani
+		}
+		if ($i2cAddr==null) $i2cAddr=$this->i2cAddr1;
+		$i2cAddr=dechex ( $i2cAddr );
+		Debugger::barDump("/usr/bin/sudo /usr/sbin/i2cget -y 1 0x$i2cAddr", 'get');
+		$output=shell_exec ("/usr/bin/sudo /usr/sbin/i2cget -y 1 0x$i2cAddr");
+		$val=substr($output, 0, 4);
+		Debugger::barDump($val, 'val');
+		$val=intval(hexdec($val));
+		if (($val&$mask)!=0) $actual_status=false; //off
+		else  $actual_status=true; //on
+		if ($actual_status!=$status) { //need change
+			if ($status==true) $val=$val&(~$mask); // set 0
+			else $val=$val|($mask); // set 1
+			$val=dechex ( $val );
+			Debugger::barDump("/usr/bin/sudo /usr/sbin/i2cset -y 1 0x$i2cAddr 0x$val", 'set');
+			$output=shell_exec ("/usr/bin/sudo /usr/sbin/i2cset -y 1 0x$i2cAddr 0x$val");
+		}
+	}
+
+	//ziskani obsahu displaye (pomoci tcp sluzby bezici na localhostu, obsluhujici zobrazovani displaye.
+	// Diky teto sluzbe je mozne obsluhovat display z vice programu najednou,tedy i s php. Samotny
+	// lcd display umoznuje jen zapis tj. pokud bych nepouzil nejakou knihovnu, nebo sluzbu ktera ho obsluhuje
+	// tak nemam sanci zjistit co na display zrovna je)
+	protected function readDisplay()
+	{
+		try {
+			$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP); /* Create a TCP/IP socket. */
+			$connect=socket_connect($socket, "127.0.0.1", 10000);
+			if ($connect==false) throw new Exception('Can not connect.');
+			$write="g";
+			socket_write($socket, $write, strlen($write));
+			$display = socket_read($socket, 2048);
+			//$lines=explode("\n", $read );
+			Debugger::barDump($display, 'display');
+			return $display;
+		} catch (Exception $e) {
+		    //echo 'Caught exception: ',  $e->getMessage(), "\n";
+		    return "No connection\ninto display";
+		}			
+	}
+	
+}
+

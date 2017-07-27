@@ -1,0 +1,35 @@
+<div class="box">
+	<table>
+		<tr>
+			<td>
+				<table class="small">
+					<tr>
+						<td>
+							<a n:href="PushButton!"  class="mybutton_ON"> ON </a>
+						</td>
+						<td></td>
+						<td></td>
+						<td>{$config->name}</td>
+					<tr>
+					<tr>
+						<td>
+							<div class="last_date">
+							last: 
+							{$config->lastPush|date:'Y-m-d'}
+							{$config->lastPush|date:'H:i:s'}
+							</div>
+						</td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</td>
+			<td>
+				<a n:href="ScanRFXCode!" class="mybutton_1"> Scan code </a><br>
+				<a n:href="Rename!" class="mybutton_1"> Set Name </a><br>
+				<a n:href="AddDomoticz!" class="mybutton_1"> Add Domoticz </a><br>
+			</td>
+		</tr>
+	</table>
+</div>

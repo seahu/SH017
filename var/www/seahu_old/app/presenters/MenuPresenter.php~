@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Presenters;
+
+use Nette;
+use App\Model;
+use Nette\Security\User;
+
+class MenuPresenter extends BasePresenter
+{
+
+	public function renderDefault()
+	{
+		$this->template->anyVariable = 'any value';
+		$this->template->user = $this->user->isAuthenticated();
+	}
+
+}

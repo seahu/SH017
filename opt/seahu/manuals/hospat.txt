@@ -1,0 +1,81 @@
+INSTALL AND CONFIGURE Wi-Fi HOSPOT
+----------------------------------
+in czech language
+
+postup instalace Wi-Fi hospotu
+
+nejprve instalce balicku hostapu:
+sudo apt-get install hostapd
+
+dale bude potreba nejaky ten DHCPd server, na tyto ucely je nejlepsi dnsmasq kromne dhcpd take kesuje
+dns dotazy a nemusi se prakticky nastavovat, protoze vse podstatne si vezme z aktualniho nastveni site
+sudo apt-get install dnsmasq
+
+pro natovani  paketu mezi lokalni siti a wi-fi je potreba take iptables (ale to uz je soucasti snad kazdeho linuxu)
+
+1.) Zprovozneni wi-fi v AP modu
+-------------------------------
+nejprve musime nastavit wi-fi sitovce pevnou IP adresu s maksou site,
+a pak spustime sluzbu hostapd
+
+bud po jednotlivych krocich:
+ifconfig wlan0 up 192.168.3.1 netmask 255.255.255.0
+hostapd /etc/hostapd/hostapd.conf
+nebo zapisem do /etc/network/interfaces : (automaticky pak naskoci po restartu)
+"""
+auto lo
+iface lo inet loopback
+
+auto wlan0
+iface wlan0 inet static
+address 192.168.3.1
+netmask 255.255.255.0
+hostapd /etc/hostapd/hostapd.conf
+"""
+
+hostapd je potreba nastavit v /etc/hostapd/hostapd.conf, ale neni to nic tezkeho, staci nastavit SSID, vysilaci kanal a heslo.
+Pri chybe v konfiguraci je docela vyrecny, takze i pripadnou chybu v konfiguraci lze snadno zpravit.
+
+
+2.) Sprovozneni DHCPd serveru
+----------------------------
+AP jiz funguje, ale bez dhcpd serveru, takze dalsi krok je ve wifi siti sprovoznit DHCPd nejlepe i DNS server.
+Pro tyto ucely je nejlepsi dnsmasq, kromne dhcpd take kesuje dns dotazy a nemusi se prakticky nastavovat, 
+protoze vse podstatne si vezme z aktualniho nastveni site. Takze do konfiguracnho souboru 
+v  /etc/dnsmasq.d/dnsmasq.conf staci uvest:
+"""
+interface=lo,wlan0
+no-dhcp-interface=lo
+dhcp-range=192.168.3.20,192.168.3.254,255.255.255.0,12h
+"""
+a spustit:
+sudo /etc/init.d/dnsmasq start
+
+Pro zjistovani aktualne pripojenych clientu se lze podivat do /var/lib/misc/dnsmasq.leases
+
+3.) Routovani/natovani paketu
+-----------------------------
+Pokud je RPi pripojen do internetu napr. pomoci kabelu ci modemu a chcete wifi klientum umoznit pristup k internetu, 
+tak je potreba povolit a nastvit routovani a pokud chcete tyto dve site jeste vice od sebe oddelit tak nastvit i NAT.
+
+Nejprve nastveni NATu (iptables) :
+iptables --flush
+iptables --table nat --flush
+iptables --delete-chain
+iptables --table nat --delete-chain
+iptables --table nat --append POSTROUTING --out-interface $2 -j MASQUERADE
+iptables --append FORWARD --in-interface $1 -j ACCEPT
+
+Pote povoleni forwardovani:
+sysctl -w net.ipv4.ip_forward=1
+nebo zapisem net.ipv4.ip_forward=1 do /etc/sysctl.conf
+
+...
+vice na 
+https://nims11.wordpress.com/2012/04/27/hostapd-the-linux-way-to-create-virtual-wifi-access-point/#comment-770
+
+https://nims11.wordpress.com/2012/04/27/hostapd-the-linux-way-to-create-virtual-wifi-access-point/
+
+https://seravo.fi/2014/create-wireless-access-point-hostapd
+
+

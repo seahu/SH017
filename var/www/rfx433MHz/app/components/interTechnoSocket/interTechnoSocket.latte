@@ -1,0 +1,28 @@
+<div class="box">
+	<table>
+		<tr>
+			<td>
+				<table class="small">
+					<tr>
+						<td><a n:href="SetSocket! on"  class="mybutton_{$config->status=="ON" ? "ON" : "OFF"}"> ON </a></td>
+						<td></td>
+						<td><a n:href="SetSocket! off" class="mybutton_{$config->status=="ON" ? "OFF" : "ON"}"> OFF </a></td>
+						<td>{$config->name}</td>
+					<tr>
+					<tr>
+						<td></td>
+						<td><a n:href="AllOff!" class="mybutton_OFF" title="Also can be use for reset socket."> ALL OFF </a></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</td>
+			<td>
+				<a n:href="InterTechnoSocketSetCode!" class="mybutton_1"> Set code </a>
+				<a n:href="InterTechnoSocketScanCode!" class="mybutton_1"> Scan code </a><br>
+				<a n:href="Rename!" class="mybutton_1"> Set Name </a><br>
+				<a n:href="AddDomoticz!" class="mybutton_1"> Add Domoticz </a><br>
+			</td>
+		</tr>
+	</table>
+</div>

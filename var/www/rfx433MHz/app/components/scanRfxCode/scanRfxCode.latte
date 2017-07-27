@@ -1,0 +1,9 @@
+<div class="scanRfxCodeBox">
+	<b>pokus s komponentou {$name}</b>
+	{if $config->scanning==""}
+		<a n:href="StartScanRFXCode!" class="mybutton_1"> SStart scan</a><br>
+		{$config->code}
+	{else}
+		<a n:href="StopScanRFXCode!" class="mybutton_1"> Stop scan </a><br>
+	{/if}
+</div>

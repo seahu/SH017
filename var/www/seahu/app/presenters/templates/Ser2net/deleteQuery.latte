@@ -1,0 +1,33 @@
+{block content}
+<div id="ser2net">
+	<h1> Serial port over network </h1>
+	<h2> You sure to delete next item: </h2>
+	<table class="ser2net">
+				<tr>
+					<th class="ser2net">Device<br>path</th>
+					<th>Port<br>number</th>
+					<th>Baud<br>rate</th>
+					<th>Time<br> out</th>
+					<th>Parity</th>
+					<th>Stop<br>bits</th>
+					<th>Data<br>bit</th>
+					<th>Flow<br>control</th>
+					<th>Remote controls<br>(by RFC 2217)</th>
+				</tr>
+				<tr>
+					<td>{$conf['device']}</td>
+					<td>{$conf['port']}</td>
+					<td>{$conf['rate']}</td>
+					<td>{$conf['timeout']}</td>
+					<td>{$conf['parity']}</td>
+					<td>{$conf['stopBit']}</td>
+					<td>{$conf['dataBit']}</td>
+					<td>{$conf['flow']}</td>
+					<td>{$conf['remoteContol']?:"No"|replace:"remctl":"Yes"}</td>
+				</tr>
+		</table>
+		<p>
+			<a n:href="Ser2net:" class="mybutton"> No</a>
+			<a n:href="Ser2net:deleteItem $noID" class="mybutton"> Yes</a>
+		</p>
+</div>

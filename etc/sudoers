@@ -1,0 +1,56 @@
+#
+# This file MUST be edited with the 'visudo' command as root.
+#
+# Please consider adding local content in /etc/sudoers.d/ instead of
+# directly modifying this file.
+#
+# See the man page for details on how to write a sudoers file.
+#
+Defaults	env_reset
+Defaults	mail_badpass
+Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Host alias specification
+
+# User alias specification
+
+# Cmnd alias specification
+
+# User privilege specification
+root	ALL=(ALL:ALL) ALL
+
+# Allow members of group sudo to execute any command
+%sudo	ALL=(ALL:ALL) ALL
+
+# add by Ing. Ondrej Lycka for www.seahu.cz
+# for web net configure
+www-data  ALL=NOPASSWD: /opt/seahu/getNetSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/getWifiSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/scanWifi.sh
+www-data  ALL=NOPASSWD: /opt/seahu/restartWifi.sh
+www-data  ALL=NOPASSWD: /opt/seahu/checkPasswd.sh
+www-data  ALL=NOPASSWD: /opt/seahu/changePasswd.sh
+www-data  ALL=NOPASSWD: /opt/seahu/setSystemTime.sh
+www-data  ALL=NOPASSWD: /usr/sbin/i2cget
+www-data  ALL=NOPASSWD: /usr/sbin/i2cset
+www-data  ALL=NOPASSWD: /sbin/shutdown
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_domoticz.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_rex.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_ser2net.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_rfx433MHz.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_rflink.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_modem.sh
+www-data  ALL=NOPASSWD: /opt/seahu/getModemSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/rfx433MHz/send_433Mhz.py
+www-data  ALL=NOPASSWD: /opt/seahu/rfx433MHz/codesend
+www-data  ALL=NOPASSWD: /sbin/sysctl
+www-data  ALL=NOPASSWD: /bin/sed
+www-data  ALL=NOPASSWD: /sbin/ifup
+www-data  ALL=NOPASSWD: /sbin/ifdown
+www-data  ALL=NOPASSWD: /bin/grep
+
+# See sudoers(5) for more information on "#include" directives:
+
+#includedir /etc/sudoers.d
+
+pi ALL=(ALL) NOPASSWD: ALL

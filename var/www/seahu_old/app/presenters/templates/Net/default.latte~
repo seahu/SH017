@@ -1,0 +1,33 @@
+{block content}
+<div id="net">
+	<h1> Network Adapater Status </h1>
+	<table>
+		<tr>
+			<td>Use DHCP client:</td>
+			<td>{$dhcp|replace:"1":"Yes"|replace:"0":"No"}</td>
+		</tr>
+		<tr>
+			<td>IP:</td>
+			<td>{$ip}</td>
+		</tr>
+		<tr>
+			<td>Netmask:</td>
+			<td>{$netmask}</td>
+		</tr>
+		<tr>
+			<td>gateway</td>
+			<td>{$gateway}</td>
+		</tr>
+		<tr>
+			<td>Primary DNS server:</td>
+			<td>{$dns}</td>
+		</tr>
+		<tr>
+			<td>Mac address:</td>
+			<td>{$mac}</td>
+		</tr>
+	</table>
+	{if $user->loggedIn}
+		<p><a n:href="Net:updateNetForm" class="button"> Edit</a></p>
+	{/if}
+</div>

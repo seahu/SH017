@@ -1,0 +1,5 @@
+{block content}
+
+{control updateTimeForm}
+
+<p><a n:href="Time:" class="button">← Back</a></p>
