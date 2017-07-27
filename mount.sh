@@ -5,7 +5,6 @@
 Mount() {
     #run as sudo
     #/var/www
-    sudo mount --bind /var/www/ /home/pi/SH017/var/www/
     sudo mount --bind /var/www/html /home/pi/SH017/var/www/html
     sudo mount --bind /var/www/rflink /home/pi/SH017/var/www/rflink
     sudo mount --bind /var/www/rfx433MHz /home/pi/SH017/var/www/rfx433MHz
@@ -20,7 +19,6 @@ Mount() {
 Umount() {
     #run as sudo
     #/var/www
-    sudo umount /home/pi/SH017/var/www/
     sudo umount /home/pi/SH017/var/www/html
     sudo umount /home/pi/SH017/var/www/rflink
     sudo umount /home/pi/SH017/var/www/rfx433MHz

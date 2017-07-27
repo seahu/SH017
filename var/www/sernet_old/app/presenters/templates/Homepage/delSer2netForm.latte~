@@ -1,7 +1,0 @@
-{block content}
-
-{control editSer2netForm}
-
-
-
-<p><a n:href="Ser2net:" class="mybutton">← Back</a></p>
