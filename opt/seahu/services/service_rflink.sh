@@ -11,7 +11,7 @@ main()
 	disable)
 	    #seme code
 	    /etc/init.d/rflink.sh stop
-	    update-rc.d rfxlink.sh disable
+	    update-rc.d rflink.sh disable
 	    ;;
 	status)
 	    #env - if runn las line must be Started

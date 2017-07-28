@@ -44,8 +44,8 @@ fi
 #run lcd menu
 lcd_menu=$(cat /etc/seahu/lcd_menu.cfg)
 if [ "$lcd_menu" = "1" ]; then
-    #/opt/seahu/lcd_menu/lcdmenu.py >/dev/null &
-    /opt/seahu/lcd_menu/lcdmenu.py >/var/log/lcdmenu.log 2>&1 &
+    /opt/seahu/lcd_menu/lcdmenu.py >/dev/null &
+    #/opt/seahu/lcd_menu/lcdmenu.py >/var/log/lcdmenu.log 2>&1 &
 fi
 
 owfs_conf=$(cat /etc/seahu/owfs.cfg)
@@ -65,8 +65,8 @@ fi
 
 #hook for bug in domoticz and RFLink over LAN (must be restrt domoticz )
 sleep 30
-if service --status-all | grep "[ + ].*domoticz.sh" > /dev/null; then
-    if  service --status-all | grep "[ + ].*rflink.sh" > /dev/null; then
+if service --status-all | grep "\+.*domoticz.sh" > /dev/null; then
+    if  service --status-all | grep "\+.*rflink.sh" > /dev/null; then
 	#/opt/seahu/beep.py
         /etc/init.d/domoticz.sh restart
     fi
