@@ -88,6 +88,7 @@ call_user_func(reset($_b->blocks['head']), $_b, get_defined_vars())  ?>
 		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Net:"), ENT_COMPAT) ?>" class="mybutton">Network</a><br>
 		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Wifi:"), ENT_COMPAT) ?>" class="mybutton">Wifi</a><br>
 		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Modem:"), ENT_COMPAT) ?>" class="mybutton">Modem</a><br>
+		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Openvpn:"), ENT_COMPAT) ?>" class="mybutton">OpenVPN</a><br>
 		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Time:"), ENT_COMPAT) ?>" class="mybutton">Time</a><br>
 		<a href="<?php echo Latte\Runtime\Filters::escapeHtml($_control->link("Hw:"), ENT_COMPAT) ?>" class="mybutton">HW</a><br>
 <?php if ($user->loggedIn) { ?>

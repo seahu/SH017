@@ -26,6 +26,7 @@ root	ALL=(ALL:ALL) ALL
 # for web net configure
 www-data  ALL=NOPASSWD: /opt/seahu/getNetSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/getWifiSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/getOpenvpnSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/scanWifi.sh
 www-data  ALL=NOPASSWD: /opt/seahu/restartWifi.sh
 www-data  ALL=NOPASSWD: /opt/seahu/checkPasswd.sh
@@ -40,6 +41,7 @@ www-data  ALL=NOPASSWD: /opt/seahu/services/service_ser2net.sh
 www-data  ALL=NOPASSWD: /opt/seahu/services/service_rfx433MHz.sh
 www-data  ALL=NOPASSWD: /opt/seahu/services/service_rflink.sh
 www-data  ALL=NOPASSWD: /opt/seahu/services/service_modem.sh
+www-data  ALL=NOPASSWD: /opt/seahu/services/service_openvpn.sh
 www-data  ALL=NOPASSWD: /opt/seahu/getModemSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/rfx433MHz/send_433Mhz.py
 www-data  ALL=NOPASSWD: /opt/seahu/rfx433MHz/codesend
