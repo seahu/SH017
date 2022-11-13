@@ -394,6 +394,17 @@ def DoReboot():
             quit()
         sleep(0.25)
 
+def DefaultSeting():
+    lcd.clear()
+    lcd.message('Are you sure?\nPress Sel for Y')
+    while 1:
+        if lcd.buttonPressed(lcd.LEFT):
+            break
+        if lcd.buttonPressed(lcd.SELECT):
+            subprocess.getoutput("sudo /opt/seahu/setDefault.sh")
+            break
+        sleep(0.25)
+
 def LcdOff():
     global currentLcd
     currentLcd = lcd.OFF
@@ -1479,6 +1490,7 @@ class Display:
 # now start things up
 #SetIPAddress()
 lcd.image("logo.tif")
+lcd.beep()
 waitToAnyKey()
 
 uiItems = Folder('root','')

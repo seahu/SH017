@@ -41,6 +41,7 @@
   </folder>
   <widget text="Reboot" function="DoReboot" />
   <widget text="Shutdown" function="DoShutdown" />
+  <widget text="Default settings" function="DefaultSeting" />
   <widget text="Test HW" function="DoTestHW" />
   <widget text="Quit" function="DoQuit" />
 </application>

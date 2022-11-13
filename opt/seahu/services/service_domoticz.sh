@@ -5,7 +5,7 @@ domoticz()
     case "$1" in
         enable)
             #some code
-            systemctl enagble domoticz
+            systemctl enagble domoticz.sh
             #systemctl daemon-reload
             systemctl start domoticz
             ;;
