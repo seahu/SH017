@@ -11,66 +11,10 @@
 #
 # By default this script does nothing.
 
-#load config (same config for python and shell) (get addr_i2c )
-. /etc/seahu/pin_config.py
-
-#set time from Hw clock (normaly by kernel modul, bat in rasbian is bud so I must use other way)
-/opt/seahu/PCF8563.py --hctosys
-
 # Print the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
   printf "My IP address is %s\n" "$_IP"
 fi
-
-###nohup /opt/seahu/service_beep.py &
-###nohup /opt/seahu/service_graph_lcd.py &
-/opt/seahu/service_beep.py &>/dev/null &
-/opt/seahu/service_graph_lcd.py &>/dev/null &
-sleep 2
-
-# default setting
-# if module start and user pressing key esc then module go to default setting
-#key=$(i2cget -y 1 0x3c)
-key=$(i2cget -y 1 $addr_i2c)
-if [ $key = "0xdf" ]; then
-    /opt/seahu/setDefault.sh
-    /opt/seahu/beep.py
-    sleep .1
-    /opt/seahu/beep.py
-    sleep .1
-fi
-
-#run lcd menu
-lcd_menu=$(cat /etc/seahu/lcd_menu.cfg)
-if [ "$lcd_menu" = "1" ]; then
-    /opt/seahu/lcd_menu/lcdmenu.py >/dev/null &
-    #/opt/seahu/lcd_menu/lcdmenu.py >/var/log/lcdmenu.log 2>&1 &
-fi
-
-owfs_conf=$(cat /etc/seahu/owfs.cfg)
-if [ "$owfs_conf" = "1" ]; then
-    echo "run owfs"
-    owfs
-fi
-
-/opt/seahu/beep.py
-
-#start modem
-modem_conf=$(cat /etc/seahu/modem.cfg)
-if [ "$modem_conf" = "1" ]; then
-    sleep 60
-    nohup ifup ppp0 &
-fi
-
-#hook for bug in domoticz and RFLink over LAN (must be restrt domoticz )
-sleep 30
-if service --status-all | grep "\+.*domoticz.sh" > /dev/null; then
-    if  service --status-all | grep "\+.*rflink.sh" > /dev/null; then
-	#/opt/seahu/beep.py
-        /etc/init.d/domoticz.sh restart
-    fi
-fi
-
 
 exit 0

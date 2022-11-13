@@ -5,10 +5,11 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
-use Nette\Object;
-use Nette\Utils\Strings;
+use Nette;
 
 
 /**
@@ -19,81 +20,25 @@ use Nette\Utils\Strings;
  * - doc comments
  * - one or more namespaces
  */
-class PhpFile extends Object
+final class PhpFile
 {
-	/** @var string[] */
-	private $documents = array();
+	use Nette\SmartObject;
+	use Traits\CommentAware;
 
 	/** @var PhpNamespace[] */
-	private $namespaces = array();
+	private $namespaces = [];
+
+	/** @var bool */
+	private $strictTypes = false;
 
 
-	/**
-	 * @param  string|NULL
-	 * @return self
-	 */
-	public function setComment($val)
+	public static function fromCode(string $code): self
 	{
-		$this->documents = $val ? array((string) $val) : array();
-		return $this;
+		return (new Factory)->fromCode($code);
 	}
 
 
-	/**
-	 * @return string|NULL
-	 */
-	public function getComment()
-	{
-		return implode($this->documents) ?: NULL;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return self
-	 */
-	public function addComment($val)
-	{
-		return $this->addDocument($val);
-	}
-
-
-	/**
-	 * @param  string[]
-	 * @return self
-	 */
-	public function setDocuments(array $documents)
-	{
-		$this->documents = $documents;
-		return $this;
-	}
-
-
-	/**
-	 * @return string[]
-	 */
-	public function getDocuments()
-	{
-		return $this->documents;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return self
-	 */
-	public function addDocument($document)
-	{
-		$this->documents[] = $document;
-		return $this;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return ClassType
-	 */
-	public function addClass($name)
+	public function addClass(string $name): ClassType
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -101,11 +46,7 @@ class PhpFile extends Object
 	}
 
 
-	/**
-	 * @param  string
-	 * @return ClassType
-	 */
-	public function addInterface($name)
+	public function addInterface(string $name): ClassType
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -113,11 +54,7 @@ class PhpFile extends Object
 	}
 
 
-	/**
-	 * @param  string
-	 * @return ClassType
-	 */
-	public function addTrait($name)
+	public function addTrait(string $name): ClassType
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -125,33 +62,119 @@ class PhpFile extends Object
 	}
 
 
-	/**
-	 * @param  string NULL means global namespace
-	 * @return PhpNamespace
-	 */
-	public function addNamespace($name)
+	public function addEnum(string $name): ClassType
 	{
-		if (!isset($this->namespaces[$name])) {
-			$this->namespaces[$name] = new PhpNamespace($name);
-		}
-		return $this->namespaces[$name];
+		return $this
+			->addNamespace(Helpers::extractNamespace($name))
+			->addEnum(Helpers::extractShortName($name));
 	}
 
 
-	/**
-	 * @return string PHP code
-	 */
-	public function __toString()
+	/** @param  string|PhpNamespace  $namespace */
+	public function addNamespace($namespace): PhpNamespace
 	{
+		if ($namespace instanceof PhpNamespace) {
+			$res = $this->namespaces[$namespace->getName()] = $namespace;
+
+		} elseif (is_string($namespace)) {
+			$res = $this->namespaces[$namespace] = $this->namespaces[$namespace] ?? new PhpNamespace($namespace);
+
+		} else {
+			throw new Nette\InvalidArgumentException('Argument must be string|PhpNamespace.');
+		}
+
 		foreach ($this->namespaces as $namespace) {
-			$namespace->setBracketedSyntax(count($this->namespaces) > 1 && isset($this->namespaces[NULL]));
+			$namespace->setBracketedSyntax(count($this->namespaces) > 1 && isset($this->namespaces['']));
 		}
-
-		return Strings::normalize(
-			"<?php\n"
-			. ($this->documents ? "\n" . str_replace("\n", "\n * ", "/**\n" . implode("\n", $this->documents)) . "\n */\n\n" : '')
-			. implode("\n\n", $this->namespaces)
-		) . "\n";
+		return $res;
 	}
 
+
+	public function addFunction(string $name): GlobalFunction
+	{
+		return $this
+			->addNamespace(Helpers::extractNamespace($name))
+			->addFunction(Helpers::extractShortName($name));
+	}
+
+
+	/** @return PhpNamespace[] */
+	public function getNamespaces(): array
+	{
+		return $this->namespaces;
+	}
+
+
+	/** @return ClassType[] */
+	public function getClasses(): array
+	{
+		$classes = [];
+		foreach ($this->namespaces as $n => $namespace) {
+			$n .= $n ? '\\' : '';
+			foreach ($namespace->getClasses() as $c => $class) {
+				$classes[$n . $c] = $class;
+			}
+		}
+		return $classes;
+	}
+
+
+	/** @return GlobalFunction[] */
+	public function getFunctions(): array
+	{
+		$functions = [];
+		foreach ($this->namespaces as $n => $namespace) {
+			$n .= $n ? '\\' : '';
+			foreach ($namespace->getFunctions() as $c => $class) {
+				$functions[$n . $c] = $class;
+			}
+		}
+		return $functions;
+	}
+
+
+	/** @return static */
+	public function addUse(string $name, string $alias = null, string $of = PhpNamespace::NAME_NORMAL): self
+	{
+		$this->addNamespace('')->addUse($name, $alias, $of);
+		return $this;
+	}
+
+
+	/**
+	 * Adds declare(strict_types=1) to output.
+	 * @return static
+	 */
+	public function setStrictTypes(bool $on = true): self
+	{
+		$this->strictTypes = $on;
+		return $this;
+	}
+
+
+	public function hasStrictTypes(): bool
+	{
+		return $this->strictTypes;
+	}
+
+
+	/** @deprecated  use hasStrictTypes() */
+	public function getStrictTypes(): bool
+	{
+		return $this->strictTypes;
+	}
+
+
+	public function __toString(): string
+	{
+		try {
+			return (new Printer)->printFile($this);
+		} catch (\Throwable $e) {
+			if (PHP_VERSION_ID >= 70400) {
+				throw $e;
+			}
+			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			return '';
+		}
+	}
 }

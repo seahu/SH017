@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\ComponentModel;
 
 
@@ -13,35 +15,26 @@ namespace Nette\ComponentModel;
  */
 interface IContainer extends IComponent
 {
+	/**
+	 * Adds the component to the container.
+	 * @return static
+	 */
+	function addComponent(IComponent $component, ?string $name);
 
 	/**
-	 * Adds the specified component to the IContainer.
-	 * @param  IComponent
-	 * @param  string
-	 * @return void
+	 * Removes the component from the container.
 	 */
-	function addComponent(IComponent $component, $name);
+	function removeComponent(IComponent $component): void;
 
 	/**
-	 * Removes a component from the IContainer.
-	 * @param  IComponent
-	 * @return void
+	 * Returns component specified by name or path.
+	 * @throws \Nette\InvalidArgumentException  if component doesn't exist
 	 */
-	function removeComponent(IComponent $component);
+	function getComponent(string $name): ?IComponent;
 
 	/**
-	 * Returns single component.
-	 * @param  string
-	 * @return IComponent|NULL
+	 * Iterates over descendants components.
+	 * @return \Iterator<int|string,IComponent>
 	 */
-	function getComponent($name);
-
-	/**
-	 * Iterates over a components.
-	 * @param  bool    recursive?
-	 * @param  string  class types filter
-	 * @return \Iterator
-	 */
-	function getComponents($deep = FALSE, $filterType = NULL);
-
+	function getComponents(): \Iterator;
 }

@@ -1,0 +1,10 @@
+prefix=/opt/owfs
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: owcapi
+Description: OWFS C API
+Version: 3.2p4
+Cflags: -I${includedir}
+Libs: -L${libdir} -lowcapi

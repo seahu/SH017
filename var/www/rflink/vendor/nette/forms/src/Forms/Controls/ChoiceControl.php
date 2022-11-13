@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -19,62 +21,58 @@ use Nette;
 abstract class ChoiceControl extends BaseControl
 {
 	/** @var bool */
-	public $checkAllowedValues = TRUE;
+	private $checkDefaultValue = true;
 
 	/** @var array */
-	private $items = array();
+	private $items = [];
 
 
-	public function __construct($label = NULL, array $items = NULL)
+	public function __construct($label = null, array $items = null)
 	{
 		parent::__construct($label);
-		if ($items !== NULL) {
+		if ($items !== null) {
 			$this->setItems($items);
 		}
 	}
 
 
-	/**
-	 * Loads HTTP data.
-	 * @return void
-	 */
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->value = $this->getHttpData(Nette\Forms\Form::DATA_TEXT);
-		if ($this->value !== NULL) {
-			if (is_array($this->disabled) && isset($this->disabled[$this->value])) {
-				$this->value = NULL;
-			} else {
-				$this->value = key(array($this->value => NULL));
-			}
+		if ($this->value !== null) {
+			$this->value = is_array($this->disabled) && isset($this->disabled[$this->value])
+				? null
+				: key([$this->value => null]);
 		}
 	}
 
 
 	/**
 	 * Sets selected item (by key).
-	 * @param  string|int
-	 * @return self
+	 * @param  string|int|null  $value
+	 * @return static
 	 * @internal
 	 */
 	public function setValue($value)
 	{
-		if ($this->checkAllowedValues && $value !== NULL && !array_key_exists((string) $value, $this->items)) {
-			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, TRUE); }, array_keys($this->items))), 70, '...');
+		if ($this->checkDefaultValue && $value !== null && !array_key_exists((string) $value, $this->items)) {
+			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, true); }, array_keys($this->items))), 70, '...');
 			throw new Nette\InvalidArgumentException("Value '$value' is out of allowed set [$set] in field '{$this->name}'.");
 		}
-		$this->value = $value === NULL ? NULL : key(array((string) $value => NULL));
+		$this->value = $value === null ? null : key([(string) $value => null]);
 		return $this;
 	}
 
 
 	/**
 	 * Returns selected key.
-	 * @return string|int
+	 * @return string|int|null
 	 */
 	public function getValue()
 	{
-		return array_key_exists($this->value, $this->items) ? $this->value : NULL;
+		return array_key_exists($this->value, $this->items)
+			? $this->value
+			: null;
 	}
 
 
@@ -90,21 +88,18 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Is any item selected?
-	 * @return bool
 	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
-		return $this->getValue() !== NULL;
+		return $this->getValue() !== null;
 	}
 
 
 	/**
 	 * Sets items from which to choose.
-	 * @param  array
-	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
-	public function setItems(array $items, $useKeys = TRUE)
+	public function setItems(array $items, bool $useKeys = true)
 	{
 		$this->items = $useKeys ? $items : array_combine($items, $items);
 		return $this;
@@ -113,9 +108,8 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Returns items from which to choose.
-	 * @return array
 	 */
-	public function getItems()
+	public function getItems(): array
 	{
 		return $this->items;
 	}
@@ -128,27 +122,34 @@ abstract class ChoiceControl extends BaseControl
 	public function getSelectedItem()
 	{
 		$value = $this->getValue();
-		return $value === NULL ? NULL : $this->items[$value];
+		return $value === null ? null : $this->items[$value];
 	}
 
 
 	/**
 	 * Disables or enables control or items.
-	 * @param  bool|array
-	 * @return self
+	 * @param  bool|array  $value
+	 * @return static
 	 */
-	public function setDisabled($value = TRUE)
+	public function setDisabled($value = true)
 	{
 		if (!is_array($value)) {
 			return parent::setDisabled($value);
 		}
 
-		parent::setDisabled(FALSE);
-		$this->disabled = array_fill_keys($value, TRUE);
+		parent::setDisabled(false);
+		$this->disabled = array_fill_keys($value, true);
 		if (isset($this->disabled[$this->value])) {
-			$this->value = NULL;
+			$this->value = null;
 		}
 		return $this;
 	}
 
+
+	/** @return static */
+	public function checkDefaultValue(bool $value = true)
+	{
+		$this->checkDefaultValue = $value;
+		return $this;
+	}
 }

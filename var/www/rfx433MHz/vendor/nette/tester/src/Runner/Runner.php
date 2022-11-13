@@ -5,9 +5,11 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner;
 
-use Tester;
+use Tester\Environment;
 
 
 /**
@@ -15,15 +17,11 @@ use Tester;
  */
 class Runner
 {
-	const
-		PASSED = 1,
-		SKIPPED = 2,
-		FAILED = 3;
-
-	const TEST_FILE_EXTENSION = 'phpt';
-
 	/** @var string[]  paths to test files/directories */
-	public $paths = array();
+	public $paths = [];
+
+	/** @var string[] */
+	public $ignoreDirs = ['vendor'];
 
 	/** @var int  run in parallel threads */
 	public $threadCount = 1;
@@ -32,25 +30,31 @@ class Runner
 	public $testHandler;
 
 	/** @var OutputHandler[] */
-	public $outputHandlers = array();
+	public $outputHandlers = [];
 
 	/** @var bool */
-	public $stopOnFail = FALSE;
+	public $stopOnFail = false;
 
 	/** @var PhpInterpreter */
 	private $interpreter;
 
+	/** @var array */
+	private $envVars = [];
+
 	/** @var Job[] */
 	private $jobs;
 
-	/** @var int */
-	private $jobCount;
+	/** @var bool */
+	private $interrupted = false;
 
-	/** @var array */
-	private $results;
+	/** @var string|null */
+	private $tempDir;
 
 	/** @var bool */
-	private $interrupted;
+	private $result;
+
+	/** @var array */
+	private $lastResults = [];
 
 
 	public function __construct(PhpInterpreter $interpreter)
@@ -60,34 +64,78 @@ class Runner
 	}
 
 
+	public function setEnvironmentVariable(string $name, string $value): void
+	{
+		$this->envVars[$name] = $value;
+	}
+
+
+	public function getEnvironmentVariables(): array
+	{
+		return $this->envVars;
+	}
+
+
+	public function addPhpIniOption(string $name, string $value = null): void
+	{
+		$this->interpreter = $this->interpreter->withPhpIniOption($name, $value);
+	}
+
+
+	public function setTempDirectory(?string $path): void
+	{
+		if ($path !== null) {
+			if (!is_dir($path) || !is_writable($path)) {
+				throw new \RuntimeException("Path '$path' is not a writable directory.");
+			}
+
+			$path = realpath($path) . DIRECTORY_SEPARATOR . 'Tester';
+			if (!is_dir($path) && @mkdir($path) === false && !is_dir($path)) {  // @ - directory may exist
+				throw new \RuntimeException("Cannot create '$path' directory.");
+			}
+		}
+
+		$this->tempDir = $path;
+		$this->testHandler->setTempDirectory($path);
+	}
+
+
 	/**
 	 * Runs all tests.
-	 * @return bool
 	 */
-	public function run()
+	public function run(): bool
 	{
-		$this->interrupted = FALSE;
+		$this->result = true;
+		$this->interrupted = false;
 
 		foreach ($this->outputHandlers as $handler) {
 			$handler->begin();
 		}
 
-		$this->results = array(self::PASSED => 0, self::SKIPPED => 0, self::FAILED => 0);
-		$this->jobs = $running = array();
+		$this->jobs = $running = [];
 		foreach ($this->paths as $path) {
 			$this->findTests($path);
 		}
-		$this->jobCount = count($this->jobs) + array_sum($this->results);
+
+		if ($this->tempDir) {
+			usort($this->jobs, function (Job $a, Job $b): int {
+				return $this->getLastResult($a->getTest()) - $this->getLastResult($b->getTest());
+			});
+		}
+
+		$threads = range(1, $this->threadCount);
 
 		$this->installInterruptHandler();
+		$async = $this->threadCount > 1 && count($this->jobs) > 1;
+
 		while (($this->jobs || $running) && !$this->isInterrupted()) {
-			for ($i = count($running); $this->jobs && $i < $this->threadCount; $i++) {
+			while ($threads && $this->jobs) {
 				$running[] = $job = array_shift($this->jobs);
-				$async = $this->threadCount > 1 && (count($running) + count($this->jobs) > 1);
-				$job->run($async ? $job::RUN_ASYNC : NULL);
+				$job->setEnvironmentVariable(Environment::THREAD, (string) array_shift($threads));
+				$job->run($async ? $job::RUN_ASYNC : 0);
 			}
 
-			if (count($running) > 1) {
+			if ($async) {
 				usleep(Job::RUN_USLEEP); // stream_select() doesn't work with proc_open()
 			}
 
@@ -97,6 +145,7 @@ class Runner
 				}
 
 				if (!$job->isRunning()) {
+					$threads[] = $job->getEnvironmentVariable(Environment::THREAD);
 					$this->testHandler->assess($job);
 					unset($running[$key]);
 				}
@@ -107,28 +156,33 @@ class Runner
 		foreach ($this->outputHandlers as $handler) {
 			$handler->end();
 		}
-		return !$this->results[self::FAILED];
+
+		return $this->result;
 	}
 
 
-	/**
-	 * @return void
-	 */
-	private function findTests($path)
+	private function findTests(string $path): void
 	{
-		if (strpbrk($path, '*?') === FALSE && !file_exists($path)) {
+		if (strpbrk($path, '*?') === false && !file_exists($path)) {
 			throw new \InvalidArgumentException("File or directory '$path' not found.");
 		}
 
 		if (is_dir($path)) {
-			foreach (glob(str_replace('[', '[[]', $path) . '/*', GLOB_ONLYDIR) ?: array() as $dir) {
+			foreach (glob(str_replace('[', '[[]', $path) . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+				if (in_array(basename($dir), $this->ignoreDirs, true)) {
+					continue;
+				}
 				$this->findTests($dir);
 			}
-			$path .= '/*.' . self::TEST_FILE_EXTENSION;
-		}
-		foreach (glob(str_replace('[', '[[]', $path)) ?: array() as $file) {
-			if (is_file($file)) {
-				$this->testHandler->initiate(realpath($file));
+
+			$this->findTests($path . '/*.phpt');
+			$this->findTests($path . '/*Test.php');
+
+		} else {
+			foreach (glob(str_replace('[', '[[]', $path)) ?: [] as $file) {
+				if (is_file($file)) {
+					$this->testHandler->initiate(realpath($file));
+				}
 			}
 		}
 	}
@@ -136,95 +190,109 @@ class Runner
 
 	/**
 	 * Appends new job to queue.
-	 * @return void
 	 */
-	public function addJob(Job $job)
+	public function addJob(Job $job): void
 	{
 		$this->jobs[] = $job;
 	}
 
 
-	/**
-	 * Get count of jobs.
-	 * @return int
-	 */
-	public function getJobCount()
+	public function prepareTest(Test $test): void
 	{
-		return $this->jobCount;
+		foreach ($this->outputHandlers as $handler) {
+			$handler->prepare($test);
+		}
 	}
 
 
 	/**
 	 * Writes to output handlers.
-	 * @return void
 	 */
-	public function writeResult($testName, $result, $message = NULL)
+	public function finishTest(Test $test): void
 	{
-		$this->results[$result]++;
+		$this->result = $this->result && ($test->getResult() !== Test::FAILED);
+
 		foreach ($this->outputHandlers as $handler) {
-			$handler->result($testName, $result, $message);
+			$handler->finish($test);
 		}
 
-		if ($this->stopOnFail && $result === self::FAILED) {
-			$this->interrupted = TRUE;
+		if ($this->tempDir) {
+			$lastResult = &$this->lastResults[$test->getSignature()];
+			if ($lastResult !== $test->getResult()) {
+				file_put_contents($this->getLastResultFilename($test), $lastResult = $test->getResult());
+			}
+		}
+
+		if ($this->stopOnFail && $test->getResult() === Test::FAILED) {
+			$this->interrupted = true;
 		}
 	}
 
 
-	/**
-	 * @return PhpInterpreter
-	 */
-	public function getInterpreter()
+	public function getInterpreter(): PhpInterpreter
 	{
 		return $this->interpreter;
 	}
 
 
-	/**
-	 * @return array
-	 */
-	public function getResults()
+	private function installInterruptHandler(): void
 	{
-		return $this->results;
-	}
-
-
-	/**
-	 * @return void
-	 */
-	private function installInterruptHandler()
-	{
-		if (extension_loaded('pcntl')) {
-			$interrupted = & $this->interrupted;
-			pcntl_signal(SIGINT, function () use (& $interrupted) {
+		if (function_exists('pcntl_signal')) {
+			pcntl_signal(SIGINT, function (): void {
 				pcntl_signal(SIGINT, SIG_DFL);
-				$interrupted = TRUE;
+				$this->interrupted = true;
+			});
+		} elseif (function_exists('sapi_windows_set_ctrl_handler') && PHP_SAPI === 'cli') {
+			sapi_windows_set_ctrl_handler(function () {
+				$this->interrupted = true;
 			});
 		}
 	}
 
 
-	/**
-	 * @return void
-	 */
-	private function removeInterruptHandler()
+	private function removeInterruptHandler(): void
 	{
-		if (extension_loaded('pcntl')) {
+		if (function_exists('pcntl_signal')) {
 			pcntl_signal(SIGINT, SIG_DFL);
+		} elseif (function_exists('sapi_windows_set_ctrl_handler') && PHP_SAPI === 'cli') {
+			sapi_windows_set_ctrl_handler(null);
 		}
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	private function isInterrupted()
+	private function isInterrupted(): bool
 	{
-		if (extension_loaded('pcntl')) {
+		if (function_exists('pcntl_signal_dispatch')) {
 			pcntl_signal_dispatch();
 		}
 
 		return $this->interrupted;
 	}
 
+
+	private function getLastResult(Test $test): int
+	{
+		$signature = $test->getSignature();
+		if (isset($this->lastResults[$signature])) {
+			return $this->lastResults[$signature];
+		}
+
+		$file = $this->getLastResultFilename($test);
+		if (is_file($file)) {
+			return $this->lastResults[$signature] = (int) file_get_contents($file);
+		}
+
+		return $this->lastResults[$signature] = Test::PREPARED;
+	}
+
+
+	private function getLastResultFilename(Test $test): string
+	{
+		return $this->tempDir
+			. DIRECTORY_SEPARATOR
+			. pathinfo($test->getFile(), PATHINFO_FILENAME)
+			. '.'
+			. substr(md5($test->getSignature()), 0, 5)
+			. '.result';
+	}
 }

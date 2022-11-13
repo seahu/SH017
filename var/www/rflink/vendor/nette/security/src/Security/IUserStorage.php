@@ -5,59 +5,54 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 
 /**
- * Interface for persistent storage for user object data.
+ * @deprecated  use Nette\Security\UserStorage
  */
 interface IUserStorage
 {
 	/** Log-out reason {@link IUserStorage::getLogoutReason()} */
-	const MANUAL = 1,
-		INACTIVITY = 2,
-		BROWSER_CLOSED = 4;
+	public const
+		MANUAL = 0b0001,
+		INACTIVITY = 0b0010;
 
 	/** Log-out behavior */
-	const CLEAR_IDENTITY = 8;
+	public const CLEAR_IDENTITY = 0b1000;
 
 	/**
 	 * Sets the authenticated status of this user.
-	 * @param  bool
-	 * @return void
+	 * @return static
 	 */
-	function setAuthenticated($state);
+	function setAuthenticated(bool $state);
 
 	/**
 	 * Is this user authenticated?
-	 * @return bool
 	 */
-	function isAuthenticated();
+	function isAuthenticated(): bool;
 
 	/**
 	 * Sets the user identity.
-	 * @return void
+	 * @return static
 	 */
-	function setIdentity(IIdentity $identity = NULL);
+	function setIdentity(?IIdentity $identity);
 
 	/**
 	 * Returns current user identity, if any.
-	 * @return IIdentity|NULL
 	 */
-	function getIdentity();
+	function getIdentity(): ?IIdentity;
 
 	/**
-	 * Enables log out from the persistent storage after inactivity.
-	 * @param  string|int|\DateTime number of seconds or timestamp
-	 * @param  int Log out when the browser is closed | Clear the identity from persistent storage?
-	 * @return void
+	 * Enables log out from the persistent storage after inactivity (like '20 minutes'). Accepts flag IUserStorage::CLEAR_IDENTITY.
+	 * @return static
 	 */
-	function setExpiration($time, $flags = 0);
+	function setExpiration(?string $expire, int $flags = 0);
 
 	/**
 	 * Why was user logged out?
-	 * @return int
 	 */
-	function getLogoutReason();
-
+	function getLogoutReason(): ?int;
 }

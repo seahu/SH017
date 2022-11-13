@@ -5,196 +5,141 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
 use Nette;
+use Nette\Utils\Type;
 
 
 /**
  * Class property description.
+ *
+ * @property mixed $value
  */
-class Property extends Nette\Object
+final class Property
 {
-	/** @var string */
-	private $name = '';
+	use Nette\SmartObject;
+	use Traits\NameAware;
+	use Traits\VisibilityAware;
+	use Traits\CommentAware;
+	use Traits\AttributeAware;
 
 	/** @var mixed */
-	public $value;
+	private $value;
 
 	/** @var bool */
-	private $static = FALSE;
+	private $static = false;
 
-	/** @var string  public|protected|private */
-	private $visibility = 'public';
+	/** @var string|null */
+	private $type;
 
-	/** @var string[] */
-	private $documents = array();
+	/** @var bool */
+	private $nullable = false;
 
+	/** @var bool */
+	private $initialized = false;
 
-	/**
-	 * @return self
-	 */
-	public static function from(\ReflectionProperty $from)
-	{
-		$prop = new static($from->getName());
-		$defaults = $from->getDeclaringClass()->getDefaultProperties();
-		$prop->value = isset($defaults[$prop->name]) ? $defaults[$prop->name] : NULL;
-		$prop->static = $from->isStatic();
-		$prop->visibility = $from->isPrivate() ? 'private' : ($from->isProtected() ? 'protected' : 'public');
-		$prop->documents = $from->getDocComment() ? array(preg_replace('#^\s*\* ?#m', '', trim($from->getDocComment(), "/* \r\n\t"))) : array();
-		return $prop;
-	}
+	/** @var bool */
+	private $readOnly = false;
 
 
-	/**
-	 * @param  string  without $
-	 */
-	public function __construct($name = '')
-	{
-		$this->setName($name);
-	}
-
-
-	/**
-	 * @param  string  without $
-	 * @return self
-	 */
-	public function setName($name)
-	{
-		$this->name = (string) $name;
-		return $this;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getName()
-	{
-		return $this->name;
-	}
-
-
-	/**
-	 * @return self
-	 */
-	public function setValue($val)
+	/** @return static */
+	public function setValue($val): self
 	{
 		$this->value = $val;
+		$this->initialized = true;
 		return $this;
 	}
 
 
-	/**
-	 * @return mixed
-	 */
-	public function getValue()
+	public function &getValue()
 	{
 		return $this->value;
 	}
 
 
-	/**
-	 * @param  bool
-	 * @return self
-	 */
-	public function setStatic($state = TRUE)
+	/** @return static */
+	public function setStatic(bool $state = true): self
 	{
-		$this->static = (bool) $state;
+		$this->static = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isStatic()
+	public function isStatic(): bool
 	{
 		return $this->static;
 	}
 
 
-	/**
-	 * @param  string  public|protected|private
-	 * @return self
-	 */
-	public function setVisibility($val)
+	/** @return static */
+	public function setType(?string $type): self
 	{
-		if (!in_array($val, array('public', 'protected', 'private'), TRUE)) {
-			throw new Nette\InvalidArgumentException('Argument must be public|protected|private.');
+		$this->type = Helpers::validateType($type, $this->nullable);
+		return $this;
+	}
+
+
+	/**
+	 * @return Type|string|null
+	 */
+	public function getType(bool $asObject = false)
+	{
+		return $asObject && $this->type
+			? Type::fromString($this->type)
+			: $this->type;
+	}
+
+
+	/** @return static */
+	public function setNullable(bool $state = true): self
+	{
+		$this->nullable = $state;
+		return $this;
+	}
+
+
+	public function isNullable(): bool
+	{
+		return $this->nullable;
+	}
+
+
+	/** @return static */
+	public function setInitialized(bool $state = true): self
+	{
+		$this->initialized = $state;
+		return $this;
+	}
+
+
+	public function isInitialized(): bool
+	{
+		return $this->initialized || $this->value !== null;
+	}
+
+
+	/** @return static */
+	public function setReadOnly(bool $state = true): self
+	{
+		$this->readOnly = $state;
+		return $this;
+	}
+
+
+	public function isReadOnly(): bool
+	{
+		return $this->readOnly;
+	}
+
+
+	/** @throws Nette\InvalidStateException */
+	public function validate(): void
+	{
+		if ($this->readOnly && !$this->type) {
+			throw new Nette\InvalidStateException("Property \$$this->name: Read-only properties are only supported on typed property.");
 		}
-		$this->visibility = (string) $val;
-		return $this;
 	}
-
-
-	/**
-	 * @return string
-	 */
-	public function getVisibility()
-	{
-		return $this->visibility;
-	}
-
-
-	/**
-	 * @param  string|NULL
-	 * @return self
-	 */
-	public function setComment($val)
-	{
-		$this->documents = $val ? array((string) $val) : array();
-		return $this;
-	}
-
-
-	/**
-	 * @return string|NULL
-	 */
-	public function getComment()
-	{
-		return implode($this->documents) ?: NULL;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return self
-	 */
-	public function addComment($val)
-	{
-		return $this->addDocument($val);
-	}
-
-
-	/**
-	 * @param  string[]
-	 * @return self
-	 */
-	public function setDocuments(array $s)
-	{
-		$this->documents = $s;
-		return $this;
-	}
-
-
-	/**
-	 * @return string[]
-	 */
-	public function getDocuments()
-	{
-		return $this->documents;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return self
-	 */
-	public function addDocument($s)
-	{
-		$this->documents[] = (string) $s;
-		return $this;
-	}
-
 }

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -13,8 +15,10 @@ use Nette;
 /**
  * Forwards to new request.
  */
-class ForwardResponse extends Nette\Object implements Nette\Application\IResponse
+final class ForwardResponse implements Nette\Application\Response
 {
+	use Nette\SmartObject;
+
 	/** @var Nette\Application\Request */
 	private $request;
 
@@ -25,10 +29,7 @@ class ForwardResponse extends Nette\Object implements Nette\Application\IRespons
 	}
 
 
-	/**
-	 * @return Nette\Application\Request
-	 */
-	public function getRequest()
+	public function getRequest(): Nette\Application\Request
 	{
 		return $this->request;
 	}
@@ -36,10 +37,8 @@ class ForwardResponse extends Nette\Object implements Nette\Application\IRespons
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	{
 	}
-
 }

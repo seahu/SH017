@@ -5,19 +5,23 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Caching;
 
 use Nette;
-use Nette\Utils\Callback;
 
 
 /**
  * Implements the cache for a application.
  */
-class Cache extends Nette\Object implements \ArrayAccess
+class Cache
 {
+	use Nette\SmartObject;
+
 	/** dependency */
-	const PRIORITY = 'priority',
+	public const
+		PRIORITY = 'priority',
 		EXPIRATION = 'expire',
 		EXPIRE = 'expire',
 		SLIDING = 'sliding',
@@ -26,25 +30,20 @@ class Cache extends Nette\Object implements \ArrayAccess
 		ITEMS = 'items',
 		CONSTS = 'consts',
 		CALLBACKS = 'callbacks',
+		NAMESPACES = 'namespaces',
 		ALL = 'all';
 
 	/** @internal */
-	const NAMESPACE_SEPARATOR = "\x00";
+	public const NAMESPACE_SEPARATOR = "\x00";
 
-	/** @var IStorage */
+	/** @var Storage */
 	private $storage;
 
 	/** @var string */
 	private $namespace;
 
-	/** @var string  last query cache used by offsetGet() */
-	private $key;
 
-	/** @var mixed  last query cache used by offsetGet()  */
-	private $data;
-
-
-	public function __construct(IStorage $storage, $namespace = NULL)
+	public function __construct(Storage $storage, string $namespace = null)
 	{
 		$this->storage = $storage;
 		$this->namespace = $namespace . self::NAMESPACE_SEPARATOR;
@@ -53,9 +52,8 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Returns cache storage.
-	 * @return IStorage
 	 */
-	public function getStorage()
+	final public function getStorage(): Storage
 	{
 		return $this->storage;
 	}
@@ -63,9 +61,8 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Returns cache namespace.
-	 * @return string
 	 */
-	public function getNamespace()
+	final public function getNamespace(): string
 	{
 		return (string) substr($this->namespace, 0, -1);
 	}
@@ -73,31 +70,81 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Returns new nested cache object.
-	 * @param  string
-	 * @return self
+	 * @return static
 	 */
-	public function derive($namespace)
+	public function derive(string $namespace)
 	{
-		$derived = new static($this->storage, $this->namespace . $namespace);
-		return $derived;
+		return new static($this->storage, $this->namespace . $namespace);
 	}
 
 
 	/**
 	 * Reads the specified item from the cache or generate it.
-	 * @param  mixed key
-	 * @param  callable
-	 * @return mixed|NULL
+	 * @param  mixed  $key
+	 * @return mixed
 	 */
-	public function load($key, $fallback = NULL)
+	public function load($key, callable $generator = null)
 	{
-		$data = $this->storage->read($this->generateKey($key));
-		if ($data === NULL && $fallback) {
-			return $this->save($key, function (& $dependencies) use ($fallback) {
-				return call_user_func_array($fallback, array(& $dependencies));
-			});
+		$storageKey = $this->generateKey($key);
+		$data = $this->storage->read($storageKey);
+		if ($data === null && $generator) {
+			$this->storage->lock($storageKey);
+			try {
+				$data = $generator(...[&$dependencies]);
+			} catch (\Throwable $e) {
+				$this->storage->remove($storageKey);
+				throw $e;
+			}
+			$this->save($key, $data, $dependencies);
 		}
 		return $data;
+	}
+
+
+	/**
+	 * Reads multiple items from the cache.
+	 */
+	public function bulkLoad(array $keys, callable $generator = null): array
+	{
+		if (count($keys) === 0) {
+			return [];
+		}
+		foreach ($keys as $key) {
+			if (!is_scalar($key)) {
+				throw new Nette\InvalidArgumentException('Only scalar keys are allowed in bulkLoad()');
+			}
+		}
+
+		$result = [];
+		if (!$this->storage instanceof BulkReader) {
+			foreach ($keys as $key) {
+				$result[$key] = $this->load(
+					$key,
+					$generator
+						? function (&$dependencies) use ($key, $generator) {
+							return $generator(...[$key, &$dependencies]);
+						}
+						: null
+				);
+			}
+			return $result;
+		}
+
+		$storageKeys = array_map([$this, 'generateKey'], $keys);
+		$cacheData = $this->storage->bulkRead($storageKeys);
+		foreach ($keys as $i => $key) {
+			$storageKey = $storageKeys[$i];
+			if (isset($cacheData[$storageKey])) {
+				$result[$key] = $cacheData[$storageKey];
+			} elseif ($generator) {
+				$result[$key] = $this->load($key, function (&$dependencies) use ($key, $generator) {
+					return $generator(...[$key, &$dependencies]);
+				});
+			} else {
+				$result[$key] = null;
+			}
+		}
+		return $result;
 	}
 
 
@@ -112,69 +159,79 @@ class Cache extends Nette\Object implements \ArrayAccess
 	 * - Cache::ITEMS => (array|string) cache items
 	 * - Cache::CONSTS => (array|string) cache items
 	 *
-	 * @param  mixed  key
-	 * @param  mixed  value
-	 * @param  array  dependencies
+	 * @param  mixed  $key
+	 * @param  mixed  $data
 	 * @return mixed  value itself
 	 * @throws Nette\InvalidArgumentException
 	 */
-	public function save($key, $data, array $dependencies = NULL)
+	public function save($key, $data, array $dependencies = null)
 	{
-		$this->key = $this->data = NULL;
 		$key = $this->generateKey($key);
 
-		if ($data instanceof Nette\Callback || $data instanceof \Closure) {
+		if ($data instanceof \Closure) {
 			$this->storage->lock($key);
 			try {
-				$data = call_user_func_array($data, array(& $dependencies));
+				$data = $data(...[&$dependencies]);
 			} catch (\Throwable $e) {
-				$this->storage->remove($key);
-				throw $e;
-			} catch (\Exception $e) {
 				$this->storage->remove($key);
 				throw $e;
 			}
 		}
 
-		if ($data === NULL) {
+		if ($data === null) {
 			$this->storage->remove($key);
 		} else {
-			$this->storage->write($key, $data, $this->completeDependencies($dependencies, $data));
+			$dependencies = $this->completeDependencies($dependencies);
+			if (isset($dependencies[self::EXPIRATION]) && $dependencies[self::EXPIRATION] <= 0) {
+				$this->storage->remove($key);
+			} else {
+				$this->storage->write($key, $data, $dependencies);
+			}
 			return $data;
 		}
 	}
 
 
-	private function completeDependencies($dp, $data)
+	private function completeDependencies(?array $dp): array
 	{
 		// convert expire into relative amount of seconds
 		if (isset($dp[self::EXPIRATION])) {
 			$dp[self::EXPIRATION] = Nette\Utils\DateTime::from($dp[self::EXPIRATION])->format('U') - time();
 		}
 
+		// make list from TAGS
+		if (isset($dp[self::TAGS])) {
+			$dp[self::TAGS] = array_values((array) $dp[self::TAGS]);
+		}
+
+		// make list from NAMESPACES
+		if (isset($dp[self::NAMESPACES])) {
+			$dp[self::NAMESPACES] = array_values((array) $dp[self::NAMESPACES]);
+		}
+
 		// convert FILES into CALLBACKS
 		if (isset($dp[self::FILES])) {
 			foreach (array_unique((array) $dp[self::FILES]) as $item) {
-				$dp[self::CALLBACKS][] = array(array(__CLASS__, 'checkFile'), $item, @filemtime($item)); // @ - stat may fail
+				$dp[self::CALLBACKS][] = [[self::class, 'checkFile'], $item, @filemtime($item) ?: null]; // @ - stat may fail
 			}
 			unset($dp[self::FILES]);
 		}
 
 		// add namespaces to items
 		if (isset($dp[self::ITEMS])) {
-			$dp[self::ITEMS] = array_unique(array_map(array($this, 'generateKey'), (array) $dp[self::ITEMS]));
+			$dp[self::ITEMS] = array_unique(array_map([$this, 'generateKey'], (array) $dp[self::ITEMS]));
 		}
 
 		// convert CONSTS into CALLBACKS
 		if (isset($dp[self::CONSTS])) {
 			foreach (array_unique((array) $dp[self::CONSTS]) as $item) {
-				$dp[self::CALLBACKS][] = array(array(__CLASS__, 'checkConst'), $item, constant($item));
+				$dp[self::CALLBACKS][] = [[self::class, 'checkConst'], $item, constant($item)];
 			}
 			unset($dp[self::CONSTS]);
 		}
 
 		if (!is_array($dp)) {
-			$dp = array();
+			$dp = [];
 		}
 		return $dp;
 	}
@@ -182,12 +239,11 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Removes item from the cache.
-	 * @param  mixed  key
-	 * @return void
+	 * @param  mixed  $key
 	 */
-	public function remove($key)
+	public function remove($key): void
 	{
-		$this->save($key, NULL);
+		$this->save($key, null);
 	}
 
 
@@ -196,139 +252,82 @@ class Cache extends Nette\Object implements \ArrayAccess
 	 * Conditions are:
 	 * - Cache::PRIORITY => (int) priority
 	 * - Cache::TAGS => (array) tags
-	 * - Cache::ALL => TRUE
-	 * @return void
+	 * - Cache::ALL => true
 	 */
-	public function clean(array $conditions = NULL)
+	public function clean(array $conditions = null): void
 	{
-		$this->key = $this->data = NULL;
-		$this->storage->clean((array) $conditions);
+		$conditions = (array) $conditions;
+		if (isset($conditions[self::TAGS])) {
+			$conditions[self::TAGS] = array_values((array) $conditions[self::TAGS]);
+		}
+		$this->storage->clean($conditions);
 	}
 
 
 	/**
 	 * Caches results of function/method calls.
-	 * @param  mixed
 	 * @return mixed
 	 */
-	public function call($function)
+	public function call(callable $function)
 	{
 		$key = func_get_args();
 		if (is_array($function) && is_object($function[0])) {
 			$key[0][0] = get_class($function[0]);
 		}
 		return $this->load($key, function () use ($function, $key) {
-			return Callback::invokeArgs($function, array_slice($key, 1));
+			return $function(...array_slice($key, 1));
 		});
 	}
 
 
 	/**
 	 * Caches results of function/method calls.
-	 * @param  mixed
-	 * @param  array  dependencies
-	 * @return \Closure
 	 */
-	public function wrap($function, array $dependencies = NULL)
+	public function wrap(callable $function, array $dependencies = null): \Closure
 	{
-		$cache = $this;
-		return function () use ($cache, $function, $dependencies) {
-			$key = array($function, func_get_args());
+		return function () use ($function, $dependencies) {
+			$key = [$function, $args = func_get_args()];
 			if (is_array($function) && is_object($function[0])) {
 				$key[0][0] = get_class($function[0]);
 			}
-			$data = $cache->load($key);
-			if ($data === NULL) {
-				$data = $cache->save($key, Callback::invokeArgs($function, $key[1]), $dependencies);
-			}
-			return $data;
+			return $this->load($key, function (&$deps) use ($function, $args, $dependencies) {
+				$deps = $dependencies;
+				return $function(...$args);
+			});
 		};
 	}
 
 
 	/**
 	 * Starts the output cache.
-	 * @param  mixed  key
-	 * @return OutputHelper|NULL
+	 * @param  mixed  $key
 	 */
-	public function start($key)
+	public function capture($key): ?OutputHelper
 	{
 		$data = $this->load($key);
-		if ($data === NULL) {
+		if ($data === null) {
 			return new OutputHelper($this, $key);
 		}
 		echo $data;
+		return null;
+	}
+
+
+	/**
+	 * @deprecated  use capture()
+	 */
+	public function start($key): ?OutputHelper
+	{
+		return $this->capture($key);
 	}
 
 
 	/**
 	 * Generates internal cache key.
-	 *
-	 * @param  string
-	 * @return string
 	 */
-	protected function generateKey($key)
+	protected function generateKey($key): string
 	{
-		return $this->namespace . md5(is_scalar($key) ? $key : serialize($key));
-	}
-
-
-	/********************* interface ArrayAccess ****************d*g**/
-
-
-	/**
-	 * @deprecated
-	 */
-	public function offsetSet($key, $data)
-	{
-		trigger_error('Using [] is deprecated; use Cache::save(key, data) instead.', E_USER_DEPRECATED);
-		$this->save($key, $data);
-	}
-
-
-	/**
-	 * @deprecated
-	 */
-	public function offsetGet($key)
-	{
-		trigger_error('Using [] is deprecated; use Cache::load(key) instead.', E_USER_DEPRECATED);
-		$key = is_scalar($key) ? (string) $key : serialize($key);
-		if ($this->key !== $key) {
-			$this->key = $key;
-			$this->data = $this->load($key);
-		}
-		return $this->data;
-	}
-
-
-	/**
-	 * @deprecated
-	 */
-	public function offsetExists($key)
-	{
-		trigger_error('Using [] is deprecated; use Cache::load(key) !== NULL instead.', E_USER_DEPRECATED);
-		$this->key = $this->data = NULL;
-		return $this->offsetGet($key) !== NULL;
-	}
-
-
-	/**
-	 * @deprecated
-	 */
-	public function offsetUnset($key)
-	{
-		trigger_error('Using [] is deprecated; use Cache::remove(key) instead.', E_USER_DEPRECATED);
-		$this->save($key, NULL);
-	}
-
-
-	/**
-	 * @deprecated
-	 */
-	public function release()
-	{
-		trigger_error(__METHOD__ . '() is deprecated.', E_USER_DEPRECATED);
-		$this->key = $this->data = NULL;
+		return $this->namespace . md5(is_scalar($key) ? (string) $key : serialize($key));
 	}
 
 
@@ -337,27 +336,22 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Checks CALLBACKS dependencies.
-	 * @param  array
-	 * @return bool
 	 */
-	public static function checkCallbacks($callbacks)
+	public static function checkCallbacks(array $callbacks): bool
 	{
 		foreach ($callbacks as $callback) {
-			if (!call_user_func_array(array_shift($callback), $callback)) {
-				return FALSE;
+			if (!array_shift($callback)(...$callback)) {
+				return false;
 			}
 		}
-		return TRUE;
+		return true;
 	}
 
 
 	/**
 	 * Checks CONSTS dependency.
-	 * @param  string
-	 * @param  mixed
-	 * @return bool
 	 */
-	private static function checkConst($const, $value)
+	private static function checkConst(string $const, $value): bool
 	{
 		return defined($const) && constant($const) === $value;
 	}
@@ -365,13 +359,9 @@ class Cache extends Nette\Object implements \ArrayAccess
 
 	/**
 	 * Checks FILES dependency.
-	 * @param  string
-	 * @param  int
-	 * @return bool
 	 */
-	private static function checkFile($file, $time)
+	private static function checkFile(string $file, ?int $time): bool
 	{
 		return @filemtime($file) == $time; // @ - stat may fail
 	}
-
 }

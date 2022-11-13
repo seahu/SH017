@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -14,51 +16,41 @@ use Nette\Http;
 /**
  * Redirects to new URI.
  */
-class RedirectResponse extends Nette\Object implements Nette\Application\IResponse
+final class RedirectResponse implements Nette\Application\Response
 {
+	use Nette\SmartObject;
+
 	/** @var string */
 	private $url;
 
 	/** @var int */
-	private $code;
+	private $httpCode;
 
 
-	/**
-	 * @param  string  URI
-	 * @param  int     HTTP code 3xx
-	 */
-	public function __construct($url, $code = Http\IResponse::S302_FOUND)
+	public function __construct(string $url, int $httpCode = Http\IResponse::S302_FOUND)
 	{
-		$this->url = (string) $url;
-		$this->code = (int) $code;
+		$this->url = $url;
+		$this->httpCode = $httpCode;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getUrl()
+	public function getUrl(): string
 	{
 		return $this->url;
 	}
 
 
-	/**
-	 * @return int
-	 */
-	public function getCode()
+	public function getCode(): int
 	{
-		return $this->code;
+		return $this->httpCode;
 	}
 
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Http\IRequest $httpRequest, Http\IResponse $httpResponse)
+	public function send(Http\IRequest $httpRequest, Http\IResponse $httpResponse): void
 	{
-		$httpResponse->redirect($this->url, $this->code);
+		$httpResponse->redirect($this->url, $this->httpCode);
 	}
-
 }

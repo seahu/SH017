@@ -4,33 +4,39 @@
  * Nette Forms custom control example.
  */
 
+declare(strict_types=1);
+
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
 	die('Install packages using `composer install`');
 }
 
 use Nette\Forms\Form;
-use Nette\Utils\Html;
 use Nette\Forms\Helpers;
+use Nette\Utils\Html;
 
 
 class DateInput extends Nette\Forms\Controls\BaseControl
 {
-	private $day, $month, $year;
+	/** @var string */
+	private $day = '';
+
+	private $month = '';
+
+	private $year = '';
 
 
-	public function __construct($label = NULL)
+	public function __construct($label = null)
 	{
 		parent::__construct($label);
-		$this->addCondition(Form::FILLED)
-			->addRule(__CLASS__ . '::validateDate', 'Date is invalid.');
+		$this->addRule([self::class, 'validateDate'], 'Date is invalid.');
 	}
 
 
 	public function setValue($value)
 	{
-		if ($value === NULL) {
-			$this->day = $this->month = $this->year = NULL;
+		if ($value === null) {
+			$this->day = $this->month = $this->year = '';
 		} else {
 			$date = Nette\Utils\DateTime::from($value);
 			$this->day = $date->format('j');
@@ -41,18 +47,21 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	}
 
 
-	/**
-	 * @return DateTime|NULL
-	 */
-	public function getValue()
+	public function getValue(): ?DateTimeImmutable
 	{
 		return self::validateDate($this)
-			? (new DateTime)->setDate($this->year, $this->month, $this->day)->setTime(0, 0)
-			: NULL;
+			? (new DateTimeImmutable)->setDate((int) $this->year, (int) $this->month, (int) $this->day)->setTime(0, 0)
+			: null;
 	}
 
 
-	public function loadHttpData()
+	public function isFilled(): bool
+	{
+		return $this->day !== '' || $this->year !== '';
+	}
+
+
+	public function loadHttpData(): void
 	{
 		$this->day = $this->getHttpData(Form::DATA_LINE, '[day]');
 		$this->month = $this->getHttpData(Form::DATA_LINE, '[month]');
@@ -66,40 +75,37 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	public function getControl()
 	{
 		$name = $this->getHtmlName();
-		return Html::el('input', array(
-				'name' => $name . '[day]',
-				'id' => $this->getHtmlId(),
-				'value' => $this->day,
-				'type' => 'number',
-				'min' => 1,
-				'max' => 31,
-				'data-nette-rules' => Helpers::exportRules($this->getRules()) ?: NULL,
-			))
+		return Html::el('input', [
+			'name' => $name . '[day]',
+			'id' => $this->getHtmlId(),
+			'value' => $this->day,
+			'type' => 'number',
+			'min' => 1,
+			'max' => 31,
+			'data-nette-rules' => Helpers::exportRules($this->getRules()) ?: null,
+		])
 
 			. Helpers::createSelectBox(
-				array(1 => 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12),
-				array('selected?' => $this->month)
-				)->name($name . '[month]')
+				[1 => 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+				[],
+				$this->month
+			)->name($name . '[month]')
 
-			. Html::el('input', array(
+			. Html::el('input', [
 				'name' => $name . '[year]',
 				'value' => $this->year,
 				'type' => 'number',
-			));
+			]);
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public static function validateDate(Nette\Forms\IControl $control)
+	public static function validateDate(Nette\Forms\Control $control): bool
 	{
-		return is_numeric($control->day)
-			&& is_numeric($control->month)
-			&& is_numeric($control->year)
-			&& checkdate($control->month, $control->day, $control->year);
+		return ctype_digit($control->day)
+			&& ctype_digit($control->month)
+			&& ctype_digit($control->year)
+			&& checkdate((int) $control->month, (int) $control->day, (int) $control->year);
 	}
-
 }
 
 
@@ -125,10 +131,10 @@ if ($form->isSuccess()) {
 <meta charset="utf-8">
 <title>Nette Forms custom control example</title>
 <link rel="stylesheet" media="screen" href="assets/style.css" />
-<script src="https://nette.github.io/resources/js/netteForms.js"></script>
+<script src="https://nette.github.io/resources/js/3/netteForms.js"></script>
 
 <h1>Nette Forms custom control example</h1>
 
-<?php echo $form ?>
+<?php $form->render() ?>
 
 <footer><a href="https://doc.nette.org/en/forms">see documentation</a></footer>

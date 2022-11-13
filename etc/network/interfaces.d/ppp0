@@ -1,5 +1,0 @@
-auto ppp0
-#iface ppp0 inet wvdial
-iface ppp0 inet ppp
-    provider Provider
-    #provider T-mobile

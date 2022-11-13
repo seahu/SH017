@@ -5,234 +5,172 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
 use Nette;
 
 
 /**
- * PHP code generator utils.
+ * @internal
  */
-class Helpers
+final class Helpers
 {
-	const PHP_IDENT = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
-	const MAX_DEPTH = 50;
+	use Nette\StaticClass;
+
+	public const PHP_IDENT = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
+
+	public const KEYWORDS = [
+		// built-in types
+		'string' => 1, 'int' => 1, 'float' => 1, 'bool' => 1, 'array' => 1, 'object' => 1,
+		'callable' => 1, 'iterable' => 1, 'void' => 1, 'null' => 1, 'mixed' => 1, 'false' => 1,
+		'never' => 1,
+
+		// class keywords
+		'self' => 1, 'parent' => 1, 'static' => 1,
+
+		// PHP keywords
+		'include' => 1, 'include_once' => 1, 'eval' => 1, 'require' => 1, 'require_once' => 1, 'or' => 1, 'xor' => 1,
+		'and' => 1, 'instanceof' => 1, 'new' => 1, 'clone' => 1, 'exit' => 1, 'if' => 1, 'elseif' => 1, 'else' => 1,
+		'endif' => 1, 'echo' => 1, 'do' => 1, 'while' => 1, 'endwhile' => 1, 'for' => 1, 'endfor' => 1, 'foreach' => 1,
+		'endforeach' => 1, 'declare' => 1, 'enddeclare' => 1, 'as' => 1, 'try' => 1, 'catch' => 1, 'finally' => 1,
+		'throw' => 1, 'use' => 1, 'insteadof' => 1, 'global' => 1, 'var' => 1, 'unset' => 1, 'isset' => 1, 'empty' => 1,
+		'continue' => 1, 'goto' => 1, 'function' => 1, 'const' => 1, 'return' => 1, 'print' => 1, 'yield' => 1, 'list' => 1,
+		'switch' => 1, 'endswitch' => 1, 'case' => 1, 'default' => 1, 'break' => 1, 'array' => 1, 'callable' => 1,
+		'extends' => 1, 'implements' => 1, 'namespace' => 1, 'trait' => 1, 'interface' => 1, 'class' => 1, '__CLASS__' => 1,
+		'__TRAIT__' => 1, '__FUNCTION__' => 1, '__METHOD__' => 1, '__LINE__' => 1, '__FILE__' => 1, '__DIR__' => 1,
+		'__NAMESPACE__' => 1, 'fn' => 1, 'match' => 1, 'enum' => 1, 'static' => 1, 'abstract' => 1, 'final' => 1,
+		'private' => 1, 'protected' => 1, 'public' => 1, 'readonly' => 1,
+
+		// additional reserved class names
+		'true' => 1,
+	];
 
 
-	/**
-	 * Returns a PHP representation of a variable.
-	 * @return string
-	 */
-	public static function dump($var)
+	/** @deprecated  use (new Nette\PhpGenerator\Dumper)->dump() */
+	public static function dump($var): string
 	{
-		return self::_dump($var);
+		return (new Dumper)->dump($var);
 	}
 
 
-	private static function _dump(& $var, $level = 0)
+	/** @deprecated  use (new Nette\PhpGenerator\Dumper)->format() */
+	public static function format(string $statement, ...$args): string
 	{
-		if ($var instanceof PhpLiteral) {
-			return (string) $var;
+		return (new Dumper)->format($statement, ...$args);
+	}
 
-		} elseif (is_float($var)) {
-			if (is_finite($var)) {
-				$var = var_export($var, TRUE);
-				return strpos($var, '.') === FALSE ? $var . '.0' : $var; // workaround for PHP < 7.0.2
-			}
-			return str_replace('.0', '', var_export($var, TRUE)); // workaround for PHP 7.0.2
 
-		} elseif (is_bool($var)) {
-			return $var ? 'TRUE' : 'FALSE';
+	/** @deprecated  use (new Nette\PhpGenerator\Dumper)->format() */
+	public static function formatArgs(string $statement, array $args): string
+	{
+		return (new Dumper)->format($statement, ...$args);
+	}
 
-		} elseif (is_string($var) && (preg_match('#[^\x09\x20-\x7E\xA0-\x{10FFFF}]#u', $var) || preg_last_error())) {
-			static $table;
-			if ($table === NULL) {
-				foreach (array_merge(range("\x00", "\x1F"), range("\x7F", "\xFF")) as $ch) {
-					$table[$ch] = '\x' . str_pad(dechex(ord($ch)), 2, '0', STR_PAD_LEFT);
-				}
-				$table['\\'] = '\\\\';
-				$table["\r"] = '\r';
-				$table["\n"] = '\n';
-				$table["\t"] = '\t';
-				$table['$'] = '\$';
-				$table['"'] = '\"';
-			}
-			return '"' . strtr($var, $table) . '"';
 
-		} elseif (is_string($var)) {
-			return "'" . preg_replace('#\'|\\\\(?=[\'\\\\]|\z)#', '\\\\$0', $var) . "'";
-
-		} elseif (is_array($var)) {
-			$space = str_repeat("\t", $level);
-
-			static $marker;
-			if ($marker === NULL) {
-				$marker = uniqid("\x00", TRUE);
-			}
-			if (empty($var)) {
-				$out = '';
-
-			} elseif ($level > self::MAX_DEPTH || isset($var[$marker])) {
-				throw new Nette\InvalidArgumentException('Nesting level too deep or recursive dependency.');
-
-			} else {
-				$out = '';
-				$outAlt = "\n$space";
-				$var[$marker] = TRUE;
-				$counter = 0;
-				foreach ($var as $k => & $v) {
-					if ($k !== $marker) {
-						$item = ($k === $counter ? '' : self::_dump($k, $level + 1) . ' => ') . self::_dump($v, $level + 1);
-						$counter = is_int($k) ? max($k + 1, $counter) : $counter;
-						$out .= ($out === '' ? '' : ', ') . $item;
-						$outAlt .= "\t$item,\n$space";
-					}
-				}
-				unset($var[$marker]);
-			}
-			return 'array(' . (strpos($out, "\n") === FALSE && strlen($out) < 40 ? $out : $outAlt) . ')';
-
-		} elseif ($var instanceof \Serializable) {
-			$var = serialize($var);
-			return 'unserialize(' . self::_dump($var, $level) . ')';
-
-		} elseif ($var instanceof \Closure) {
-			throw new Nette\InvalidArgumentException('Cannot dump closure.');
-
-		} elseif (is_object($var)) {
-			if (PHP_VERSION_ID >= 70000 && ($rc = new \ReflectionObject($var)) && $rc->isAnonymous()) {
-				throw new Nette\InvalidArgumentException('Cannot dump anonymous class.');
-			}
-			$arr = (array) $var;
-			$space = str_repeat("\t", $level);
-			$class = get_class($var);
-
-			static $list = array();
-			if ($level > self::MAX_DEPTH || in_array($var, $list, TRUE)) {
-				throw new Nette\InvalidArgumentException('Nesting level too deep or recursive dependency.');
-
-			} else {
-				$out = "\n";
-				$list[] = $var;
-				if (method_exists($var, '__sleep')) {
-					foreach ($var->__sleep() as $v) {
-						$props[$v] = $props["\x00*\x00$v"] = $props["\x00$class\x00$v"] = TRUE;
-					}
-				}
-				foreach ($arr as $k => & $v) {
-					if (!isset($props) || isset($props[$k])) {
-						$out .= "$space\t" . self::_dump($k, $level + 1) . ' => ' . self::_dump($v, $level + 1) . ",\n";
-					}
-				}
-				array_pop($list);
-				$out .= $space;
-			}
-			return $class === 'stdClass'
-				? "(object) array($out)"
-				: __CLASS__ . "::createObject('$class', array($out))";
-
-		} elseif (is_resource($var)) {
-			throw new Nette\InvalidArgumentException('Cannot dump resource.');
-
+	public static function formatDocComment(string $content): string
+	{
+		$s = trim($content);
+		$s = str_replace('*/', '* /', $s);
+		if ($s === '') {
+			return '';
+		} elseif (strpos($content, "\n") === false) {
+			return "/** $s */\n";
 		} else {
-			return var_export($var, TRUE);
+			return str_replace("\n", "\n * ", "/**\n$s") . "\n */\n";
 		}
 	}
 
 
-	/**
-	 * Generates PHP statement.
-	 * @return string
-	 */
-	public static function format($statement)
+	public static function tagName(string $name, string $of = PhpNamespace::NAME_NORMAL): string
 	{
-		$args = func_get_args();
-		return self::formatArgs(array_shift($args), $args);
+		return isset(self::KEYWORDS[strtolower($name)])
+			? $name
+			: "/*($of*/$name";
 	}
 
 
-	/**
-	 * Generates PHP statement.
-	 * @return string
-	 */
-	public static function formatArgs($statement, array $args)
+	public static function simplifyTaggedNames(string $code, ?PhpNamespace $namespace): string
 	{
-		$a = strpos($statement, '?');
-		while ($a !== FALSE) {
-			if (!$args) {
-				throw new Nette\InvalidArgumentException('Insufficient number of arguments.');
-			}
-			$arg = array_shift($args);
-			if (substr($statement, $a + 1, 1) === '*') { // ?*
-				if (!is_array($arg)) {
-					throw new Nette\InvalidArgumentException('Argument must be an array.');
-				}
-				$s = substr($statement, 0, $a);
-				$sep = '';
-				foreach ($arg as $tmp) {
-					$s .= $sep . self::dump($tmp);
-					$sep = strlen($s) - strrpos($s, "\n") > 100 ? ",\n\t" : ', ';
-				}
-				$statement = $s . substr($statement, $a + 2);
-				$a = strlen($s);
-
-			} else {
-				$arg = substr($statement, $a - 1, 1) === '$' || in_array(substr($statement, $a - 2, 2), array('->', '::'), TRUE)
-					? self::formatMember($arg) : self::_dump($arg);
-				$statement = substr_replace($statement, $arg, $a, 1);
-				$a += strlen($arg);
-			}
-			$a = strpos($statement, '?', $a);
-		}
-		return $statement;
+		return preg_replace_callback('~/\*\(([ncf])\*/([\w\x7f-\xff\\\\]++)~', function ($m) use ($namespace) {
+			[, $of, $name] = $m;
+			return $namespace
+				? $namespace->simplifyType($name, $of)
+				: $name;
+		}, $code);
 	}
 
 
-	/**
-	 * Returns a PHP representation of a object member.
-	 * @return string
-	 */
-	public static function formatMember($name)
+	public static function unformatDocComment(string $comment): string
 	{
-		return $name instanceof PhpLiteral || !self::isIdentifier($name)
-			? '{' . self::_dump($name) . '}'
-			: $name;
+		return preg_replace('#^\s*\* ?#m', '', trim(trim(trim($comment), '/*')));
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public static function isIdentifier($value)
+	public static function unindent(string $s, int $level = 1): string
 	{
-		return is_string($value) && preg_match('#^' . self::PHP_IDENT . '\z#', $value);
+		return $level
+			? preg_replace('#^(\t| {4}){1,' . $level . '}#m', '', $s)
+			: $s;
 	}
 
 
-	/** @internal */
-	public static function createObject($class, array $props)
+	public static function isIdentifier($value): bool
 	{
-		return unserialize('O' . substr(serialize((string) $class), 1, -1) . substr(serialize($props), 1));
+		return is_string($value) && preg_match('#^' . self::PHP_IDENT . '$#D', $value);
 	}
 
 
-	/**
-	 * @param  string
-	 * @return string
-	 */
-	public static function extractNamespace($name)
+	public static function isNamespaceIdentifier($value, bool $allowLeadingSlash = false): bool
+	{
+		$re = '#^' . ($allowLeadingSlash ? '\\\\?' : '') . self::PHP_IDENT . '(\\\\' . self::PHP_IDENT . ')*$#D';
+		return is_string($value) && preg_match($re, $value);
+	}
+
+
+	public static function extractNamespace(string $name): string
 	{
 		return ($pos = strrpos($name, '\\')) ? substr($name, 0, $pos) : '';
 	}
 
 
-	/**
-	 * @param  string
-	 * @return string
-	 */
-	public static function extractShortName($name)
+	public static function extractShortName(string $name): string
 	{
-		return ($pos = strrpos($name, '\\')) === FALSE ? $name : substr($name, $pos + 1);
+		return ($pos = strrpos($name, '\\')) === false
+			? $name
+			: substr($name, $pos + 1);
 	}
 
+
+	public static function tabsToSpaces(string $s, int $count = 4): string
+	{
+		return str_replace("\t", str_repeat(' ', $count), $s);
+	}
+
+
+	/** @internal */
+	public static function createObject(string $class, array $props): object
+	{
+		return Dumper::createObject($class, $props);
+	}
+
+
+	public static function validateType(?string $type, bool &$nullable): ?string
+	{
+		if ($type === '' || $type === null) {
+			return  null;
+		}
+		if (!preg_match('#(?:
+			\?[\w\\\\]+|
+			[\w\\\\]+ (?: (&[\w\\\\]+)* | (\|[\w\\\\]+)* )
+		)()$#xAD', $type)) {
+			throw new Nette\InvalidArgumentException("Value '$type' is not valid type.");
+		}
+		if ($type[0] === '?') {
+			$nullable = true;
+			return substr($type, 1);
+		}
+		return $type;
+	}
 }

@@ -5,9 +5,10 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Iterators;
 
-use Nette;
 
 
 /**
@@ -19,16 +20,16 @@ class Mapper extends \IteratorIterator
 	private $callback;
 
 
-	public function __construct(\Traversable $iterator, $callback)
+	public function __construct(\Traversable $iterator, callable $callback)
 	{
 		parent::__construct($iterator);
-		$this->callback = Nette\Utils\Callback::check($callback);
+		$this->callback = $callback;
 	}
 
 
+	#[\ReturnTypeWillChange]
 	public function current()
 	{
-		return call_user_func($this->callback, parent::current(), parent::key());
+		return ($this->callback)(parent::current(), parent::key());
 	}
-
 }

@@ -5,11 +5,14 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner\Output;
 
 use Tester;
 use Tester\Dumper;
 use Tester\Runner\Runner;
+use Tester\Runner\Test;
 
 
 /**
@@ -21,7 +24,10 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	private $runner;
 
 	/** @var bool  display skipped tests information? */
-	private $displaySkipped = FALSE;
+	private $displaySkipped = false;
+
+	/** @var resource */
+	private $file;
 
 	/** @var string */
 	private $buffer;
@@ -29,56 +35,102 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	/** @var float */
 	private $time;
 
+	/** @var int */
+	private $count;
 
-	public function __construct(Runner $runner, $displaySkipped = FALSE)
-	{
+	/** @var array */
+	private $results;
+
+	/** @var string */
+	private $baseDir;
+
+	/** @var array */
+	private $symbols;
+
+
+	public function __construct(
+		Runner $runner,
+		bool $displaySkipped = false,
+		string $file = null,
+		bool $ciderMode = false
+	) {
 		$this->runner = $runner;
 		$this->displaySkipped = $displaySkipped;
+		$this->file = fopen($file ?: 'php://output', 'w');
+		$this->symbols = [
+			Test::PASSED => $ciderMode ? Dumper::color('green', '🍎') : '.',
+			Test::SKIPPED => 's',
+			Test::FAILED => $ciderMode ? Dumper::color('red', '🍎') : Dumper::color('white/red', 'F'),
+		];
 	}
 
 
-	public function begin()
+	public function begin(): void
 	{
-		$this->time = -microtime(TRUE);
-		echo 'PHP ' . $this->runner->getInterpreter()->getVersion()
+		$this->count = 0;
+		$this->baseDir = null;
+		$this->results = [
+			Test::PASSED => 0,
+			Test::SKIPPED => 0,
+			Test::FAILED => 0,
+		];
+		$this->time = -microtime(true);
+		fwrite($this->file, $this->runner->getInterpreter()->getShortInfo()
 			. ' | ' . $this->runner->getInterpreter()->getCommandLine()
-			. " | {$this->runner->threadCount} thread" . ($this->runner->threadCount > 1 ? 's' : '') . "\n\n";
+			. " | {$this->runner->threadCount} thread" . ($this->runner->threadCount > 1 ? 's' : '') . "\n\n");
 	}
 
 
-	public function result($testName, $result, $message)
+	public function prepare(Test $test): void
 	{
-		$outputs = array(
-			Runner::PASSED => '.',
-			Runner::SKIPPED => 's',
-			Runner::FAILED => Dumper::color('white/red', 'F'),
-		);
-		echo $outputs[$result];
+		if ($this->baseDir === null) {
+			$this->baseDir = dirname($test->getFile()) . DIRECTORY_SEPARATOR;
+		} elseif (strpos($test->getFile(), $this->baseDir) !== 0) {
+			$common = array_intersect_assoc(
+				explode(DIRECTORY_SEPARATOR, $this->baseDir),
+				explode(DIRECTORY_SEPARATOR, $test->getFile())
+			);
+			$this->baseDir = '';
+			$prev = 0;
+			foreach ($common as $i => $part) {
+				if ($i !== $prev++) {
+					break;
+				}
+				$this->baseDir .= $part . DIRECTORY_SEPARATOR;
+			}
+		}
 
-		$message = '   ' . str_replace("\n", "\n   ", trim($message)) . "\n\n";
-		if ($result === Runner::FAILED) {
-			$this->buffer .= Dumper::color('red', "-- FAILED: $testName") . "\n$message";
-		} elseif ($result === Runner::SKIPPED && $this->displaySkipped) {
-			$this->buffer .= "-- Skipped: $testName\n$message";
+		$this->count++;
+	}
+
+
+	public function finish(Test $test): void
+	{
+		$this->results[$test->getResult()]++;
+		fwrite($this->file, $this->symbols[$test->getResult()]);
+
+		$title = ($test->title ? "$test->title | " : '') . substr($test->getSignature(), strlen($this->baseDir));
+		$message = '   ' . str_replace("\n", "\n   ", trim((string) $test->message)) . "\n\n";
+		if ($test->getResult() === Test::FAILED) {
+			$this->buffer .= Dumper::color('red', "-- FAILED: $title") . "\n$message";
+		} elseif ($test->getResult() === Test::SKIPPED && $this->displaySkipped) {
+			$this->buffer .= "-- Skipped: $title\n$message";
 		}
 	}
 
 
-	public function end()
+	public function end(): void
 	{
-		$jobCount = $this->runner->getJobCount();
-		$results = $this->runner->getResults();
-		$count = array_sum($results);
-		echo !$jobCount ? "No tests found\n" :
+		$run = array_sum($this->results);
+		fwrite($this->file, !$this->count ? "No tests found\n" :
 			"\n\n" . $this->buffer . "\n"
-			. ($results[Runner::FAILED] ? Dumper::color('white/red') . 'FAILURES!' : Dumper::color('white/green') . 'OK')
-			. " ($jobCount test" . ($jobCount > 1 ? 's' : '') . ", "
-			. ($results[Runner::FAILED] ? $results[Runner::FAILED] . ' failure' . ($results[Runner::FAILED] > 1 ? 's' : '') . ', ' : '')
-			. ($results[Runner::SKIPPED] ? $results[Runner::SKIPPED] . ' skipped, ' : '')
-			. ($jobCount !== $count ? ($jobCount - $count) . ' not run, ' : '')
-			. sprintf('%0.1f', $this->time + microtime(TRUE)) . ' seconds)' . Dumper::color() . "\n";
+			. ($this->results[Test::FAILED] ? Dumper::color('white/red') . 'FAILURES!' : Dumper::color('white/green') . 'OK')
+			. " ($this->count test" . ($this->count > 1 ? 's' : '') . ', '
+			. ($this->results[Test::FAILED] ? $this->results[Test::FAILED] . ' failure' . ($this->results[Test::FAILED] > 1 ? 's' : '') . ', ' : '')
+			. ($this->results[Test::SKIPPED] ? $this->results[Test::SKIPPED] . ' skipped, ' : '')
+			. ($this->count !== $run ? ($this->count - $run) . ' not run, ' : '')
+			. sprintf('%0.1f', $this->time + microtime(true)) . ' seconds)' . Dumper::color() . "\n");
 
-		$this->buffer = NULL;
+		$this->buffer = null;
 	}
-
 }

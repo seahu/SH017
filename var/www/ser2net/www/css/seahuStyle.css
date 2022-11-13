@@ -119,6 +119,16 @@ iframe {
 	float:right;
 }
 
+.service_description {
+	width: 170px;
+	background-color: #007FFF;
+	Padding: 7px;
+	border-width: 6px;
+	Border-radius: 6px;
+	display: inline-block;
+	float:right;
+}
+
 .service_preview {
 	display: block;
 }
@@ -129,6 +139,7 @@ iframe {
 
 .service_logo img {
 	height: 70px;
+	float:left;
 }
 
 .service_start_stop {
@@ -179,6 +190,7 @@ h2 {
 	color: #0459AE;
 }
 
+
 table.ser2net{
 	//margin: 5px;
 	//background-color: #0459AE;
@@ -193,9 +205,17 @@ table.ser2net th {
 	Border-radius: 6px;
 }
 
-table.ser2net td {
+.enable {
+        margin: 5px;
+        background-color: #007FFF;
+        Padding: 7px;
+        Border-radius: 6px;
+}
+
+.disable {
 	margin: 5px;
-	background-color: #007FFF;
+	background-color: #A0A0A0;
 	Padding: 7px;
 	Border-radius: 6px;
 }
+

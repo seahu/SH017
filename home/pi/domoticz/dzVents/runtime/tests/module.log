@@ -1,0 +1,62 @@
+10/08/22 08:14:33 - 10/08/22 08:14:33 (00 - 0.0000)                         script1.lua <<
+10/08/22 08:14:33 - 10/08/22 08:14:33 (00 - 0.0000)                         script3.lua <<
+10/08/22 08:14:33 - 10/08/22 08:14:33 (00 - 0.0000)                 script_combined.lua <<
+10/08/22 08:14:33 - 10/08/22 08:14:33 (00 - 0.0000)                           internal2 <<
+10/08/22 08:14:33 - 10/08/22 08:14:33 (00 - 0.0000)                  script_logging.lua <<
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0049)            script_timer_classic.lua << timer: "every minute"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)           script_timer_function.lua << timer: "function"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)             script_timer_single.lua << timer: "every minute"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)              script_timer_table.lua << timer: "every minute"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0012)                         script1.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                         script3.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                 script_combined.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0005)                           internal2 << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)                script_variable1.lua << Variable: "myVar1" Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                script_variable2.lua << Variable: "myVar1" Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)         script_security_grouped.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                 script_security.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0052)                   script_scene1.lua << Scene: "myscene1", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0050)                   script_group1.lua << Group: "mygroup1", Index: 2
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)        script_response_trigger1.lua << HTTPResponse: "trigger1"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0014)                         script1.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)                         script3.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                 script_combined.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                           internal2 << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)                script_variable1.lua << Variable: "myVar1" Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                script_variable2.lua << Variable: "myVar1" Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)         script_security_grouped.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0006)                 script_security.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0012)                   script_scene1.lua << Scene: "myscene1", Index: 1
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0011)                   script_group1.lua << Group: "mygroup1", Index: 2
+10/08/22 08:14:34 - 10/08/22 08:14:34 (00 - 0.0007)        script_response_trigger1.lua << HTTPResponse: "trigger1"
+10/08/22 08:17:55 - 10/08/22 08:17:55 (00 - 0.0000)                         script1.lua <<
+10/08/22 08:17:55 - 10/08/22 08:17:55 (00 - 0.0000)                         script3.lua <<
+10/08/22 08:17:55 - 10/08/22 08:17:55 (00 - 0.0000)                 script_combined.lua <<
+10/08/22 08:17:55 - 10/08/22 08:17:55 (00 - 0.0000)                           internal2 <<
+10/08/22 08:17:56 - 10/08/22 08:17:56 (00 - 0.0000)                  script_logging.lua <<
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0044)            script_timer_classic.lua << timer: "every minute"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0007)           script_timer_function.lua << timer: "function"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0007)             script_timer_single.lua << timer: "every minute"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)              script_timer_table.lua << timer: "every minute"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0012)                         script1.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0007)                         script3.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                 script_combined.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0005)                           internal2 << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                script_variable1.lua << Variable: "myVar1" Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0005)                script_variable2.lua << Variable: "myVar1" Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)         script_security_grouped.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                 script_security.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0011)                   script_scene1.lua << Scene: "myscene1", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0011)                   script_group1.lua << Group: "mygroup1", Index: 2
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0007)        script_response_trigger1.lua << HTTPResponse: "trigger1"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0013)                         script1.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                         script3.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                 script_combined.lua << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                           internal2 << Device: "onscript1 (dummy)", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                script_variable1.lua << Variable: "myVar1" Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                script_variable2.lua << Variable: "myVar1" Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)         script_security_grouped.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0006)                 script_security.lua << Security: "Armed Away" timer: "Armed Away"
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0011)                   script_scene1.lua << Scene: "myscene1", Index: 1
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0011)                   script_group1.lua << Group: "mygroup1", Index: 2
+10/08/22 08:17:57 - 10/08/22 08:17:57 (00 - 0.0007)        script_response_trigger1.lua << HTTPResponse: "trigger1"

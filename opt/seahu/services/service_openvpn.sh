@@ -6,17 +6,16 @@ openVPN()
         enable)
             #some code
 	    #update-rc.d domoticz.sh default
-            update-rc.d openvpn enable
-            /etc/init.d/openvpn restart
+	    systemctl enable openvpn
+	    systemctl restart openvpn
 	    ;;
         disable)
             #seme code
-            /etc/init.d/openvpn stop
-            update-rc.d openvpn disable
+	    systemctl stop openvpn
+	    systemctl disable openvpn
 	    ;;
         status)
-            #domoticze - if run las twoline contain "Started"
-            /etc/init.d/openvpn status | tail -n 2 | grep "Started"
+	    systemctl status openvpn | grep "Active: active " > /dev/null
             if [ $? -eq 0 ] ; then
                 echo "OK"
             else

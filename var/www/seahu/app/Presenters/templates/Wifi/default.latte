@@ -1,0 +1,120 @@
+{block content}
+<div id="net">
+	<h1> Wifi Adapater Status </h1>
+	{if $enable_wlan==1 }
+		<table>
+		{if $wifi_mode=="CLIENT"}
+				<tr>
+					<td>Type:</td>
+					<td><b>{$wifi_mode}</b></td>
+				</tr>
+				<tr>
+					<td>State:</td>
+					<td>{$client_connect|replace:"1":"Connect"|replace:"0":"Disconnect"}</td>
+				</tr>
+				<tr>
+					<td>Signal:</td>
+					<td>{$client_signal}</td>
+				</tr>
+				<tr>
+					<td>SID:</td>
+					<td>{$client_sid}</td>
+				</tr>
+				<tr>
+					<td>Password:</td>
+					<td>
+						{if $user->loggedIn}
+							{$client_psk}
+						{else}
+							*****
+						{/if}
+					</td>
+				</tr>
+				<tr>
+					<td>Use DHCP client:</td>
+					<td>{$dhcp|replace:"1":"Yes"|replace:"0":"No"}</td>
+				</tr>
+				<tr>
+					<td>IP:</td>
+					<td>{$actual_ip}</td>
+				</tr>
+				<tr>
+					<td>Netmask:</td>
+					<td>{$actual_netmask}</td>
+				</tr>
+				<tr>
+					<td>gateway</td>
+					<td>{$actual_gateway}</td>
+				</tr>
+				<tr>
+					<td>Primary DNS server:</td>
+					<td>{$actual_dns}</td>
+				</tr>
+				<tr>
+					<td>Mac address:</td>
+					<td>{$mac}</td>
+				</tr>
+		{else}
+				<tr>
+					<td>Type:</td>
+					<td><b>{$wifi_mode}</b></td>
+				</tr>
+				<tr>
+					<td>SID:</td>
+					<td>{$ap_sid}</td>
+				</tr>
+				<tr>
+					<td>Channel:</td>
+					<td>{$ap_channel}</td>
+				</tr>
+				<tr>
+					<td>Password:</td>
+					<td>
+						{if $user->loggedIn}
+							{$ap_psk}
+						{else}
+							*****
+						{/if}
+					</td>
+				</tr>
+				<tr>
+					<td>IP:</td>
+					<td>{$actual_ip}</td>
+				</tr>
+				<tr>
+					<td>Netmask:</td>
+					<td>{$actual_netmask}</td>
+				</tr>
+				<tr>
+					<td>Mac address:</td>
+					<td>{$mac}</td>
+				</tr>
+				{if $enable_dhcpd==1 }
+					<tr>
+						<td> DHCP server range IP:</td>
+						<td>{$dhcpd_pool_ip1} - {$dhcpd_pool_ip2}</td>
+					</tr>
+				{/if}
+				<tr>
+					<td>Forward packets:</td>
+					<td>{$forward|replace:"1":"Enable"|replace:"0":"Disable"}</td>
+				</tr>
+				<tr>
+					<td>NAT:</td>
+					<td>{$nat|replace:"1":"Enable"|replace:"0":"Disable"}</td>
+				</tr>
+		{/if}
+		</table>
+			
+			
+	{else}
+		Wi-Fi is disable
+	{/if}
+	{if $user->loggedIn}
+		<p><a n:href="Wifi:updateWifiForm" class="mybutton"> Edit Wi-Fi as client</a></p>
+		<p><a n:href="Wifi:updateWifiApForm" class="mybutton"> Edit Wi-Fi as Acces point</a></p>
+		{if $enable_wlan==1 }
+		<p><a n:href="Wifi:disableWiFi" class="mybutton"> Disable Wi-Fi</a></p>
+		{/if}
+	{/if}
+</div>

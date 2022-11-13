@@ -5,7 +5,11 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\CodeCoverage\Generators;
+
+use Tester\Helpers;
 
 
 /**
@@ -13,26 +17,32 @@ namespace Tester\CodeCoverage\Generators;
  */
 abstract class AbstractGenerator
 {
-	const
+	protected const
 		CODE_DEAD = -2,
 		CODE_UNTESTED = -1,
 		CODE_TESTED = 1;
 
 	/** @var array */
-	public $acceptFiles = array('php', 'phpc', 'phpt', 'phtml');
+	public $acceptFiles = ['php', 'phpt', 'phtml'];
 
 	/** @var array */
 	protected $data;
 
-	/** @var string */
-	protected $source;
+	/** @var array */
+	protected $sources;
+
+	/** @var int */
+	protected $totalSum = 0;
+
+	/** @var int */
+	protected $coveredSum = 0;
 
 
 	/**
-	 * @param  string  path to coverage.dat file
-	 * @param  string  path to covered source file or directory
+	 * @param  string  $file  path to coverage.dat file
+	 * @param  array   $sources  paths to covered source files or directories
 	 */
-	public function __construct($file, $source = NULL)
+	public function __construct(string $file, array $sources = [])
 	{
 		if (!is_file($file)) {
 			throw new \Exception("File '$file' is missing.");
@@ -43,34 +53,33 @@ abstract class AbstractGenerator
 			throw new \Exception("Content of file '$file' is invalid.");
 		}
 
-		if (!$source) {
-			$source = key($this->data);
-			for ($i = 0; $i < strlen($source); $i++) {
-				foreach ($this->data as $s => $foo) {
-					if (!isset($s[$i]) || $source[$i] !== $s[$i]) {
-						$source = substr($source, 0, $i);
-						break 2;
-					}
+		$this->data = array_filter($this->data, function (string $path): bool {
+			return @is_file($path); // @ some files or wrappers may not exist, i.e. mock://
+		}, ARRAY_FILTER_USE_KEY);
+
+		if (!$sources) {
+			$sources = [Helpers::findCommonDirectory(array_keys($this->data))];
+
+		} else {
+			foreach ($sources as $source) {
+				if (!file_exists($source)) {
+					throw new \Exception("File or directory '$source' is missing.");
 				}
 			}
-			$source = dirname($source . 'x');
-
-		} elseif (!file_exists($source)) {
-			throw new \Exception("File or directory '$source' is missing.");
 		}
 
-		$this->source = realpath($source);
+		$this->sources = array_map('realpath', $sources);
 	}
 
 
-	public function render($file = NULL)
+	public function render(string $file = null): void
 	{
 		$handle = $file ? @fopen($file, 'w') : STDOUT; // @ is escalated to exception
 		if (!$handle) {
 			throw new \Exception("Unable to write to file '$file'.");
 		}
 
-		ob_start(function ($buffer) use ($handle) { fwrite($handle, $buffer); }, 4096);
+		ob_start(function (string $buffer) use ($handle) { fwrite($handle, $buffer); }, 4096);
 		try {
 			$this->renderSelf();
 		} catch (\Exception $e) {
@@ -87,40 +96,36 @@ abstract class AbstractGenerator
 	}
 
 
-	/**
-	 * @return AcceptIterator
-	 */
-	protected function getSourceIterator()
+	public function getCoveredPercent(): float
 	{
-		$iterator = is_dir($this->source)
-			? new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->source))
-			: new \ArrayIterator(array(new \SplFileInfo($this->source)));
-
-		return new AcceptIterator($iterator, $this->acceptFiles);
+		return $this->totalSum ? $this->coveredSum * 100 / $this->totalSum : 0;
 	}
 
 
-	abstract protected function renderSelf();
-
-}
-
-
-/** @internal */
-class AcceptIterator extends \FilterIterator
-{
-	private $acceptFiles;
-
-	public function __construct(\Iterator $iterator, array $acceptFiles)
+	protected function getSourceIterator(): \Iterator
 	{
-		parent::__construct($iterator);
-		$this->acceptFiles = $acceptFiles;
+		$iterator = new \AppendIterator;
+		foreach ($this->sources as $source) {
+			$iterator->append(
+				is_dir($source)
+					? new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($source))
+					: new \ArrayIterator([new \SplFileInfo($source)])
+			);
+		}
+
+		return new \CallbackFilterIterator($iterator, function (\SplFileInfo $file): bool {
+			return $file->getBasename()[0] !== '.'  // . or .. or .gitignore
+				&& in_array($file->getExtension(), $this->acceptFiles, true);
+		});
 	}
 
 
-	public function accept()
+	/** @deprecated  */
+	protected static function getCommonFilesPath(array $files): string
 	{
-		return substr($this->current()->getBasename(), 0, 1) !== '.'  // . or .. or .gitignore
-			&& in_array(pathinfo($this->current(), PATHINFO_EXTENSION), $this->acceptFiles, TRUE);
+		return Helpers::findCommonDirectory($files);
 	}
 
+
+	abstract protected function renderSelf(): void;
 }

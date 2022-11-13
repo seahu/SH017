@@ -5,7 +5,11 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\CodeCoverage\Generators;
+
+use Tester\Helpers;
 
 
 /**
@@ -13,76 +17,68 @@ namespace Tester\CodeCoverage\Generators;
  */
 class HtmlGenerator extends AbstractGenerator
 {
+	private const CLASSES = [
+		self::CODE_TESTED => 't', // tested
+		self::CODE_UNTESTED => 'u', // untested
+		self::CODE_DEAD => 'dead', // dead code
+	];
+
 	/** @var string */
 	private $title;
 
 	/** @var array */
-	private $files = array();
-
-	/** @var int */
-	private $totalSum = 0;
-
-	/** @var int */
-	private $coveredSum = 0;
-
-	/** @var array */
-	public static $classes = array(
-		self::CODE_TESTED => 't', // tested
-		self::CODE_UNTESTED => 'u', // untested
-		self::CODE_DEAD => 'dead', // dead code
-	);
+	private $files = [];
 
 
 	/**
-	 * @param  string  path to coverage.dat file
-	 * @param  string  path to source file/directory
-	 * @param  string
+	 * @param  string  $file  path to coverage.dat file
+	 * @param  array   $sources  files/directories
 	 */
-	public function __construct($file, $source = NULL, $title = NULL)
+	public function __construct(string $file, array $sources = [], string $title = null)
 	{
-		parent::__construct($file, $source);
+		parent::__construct($file, $sources);
 		$this->title = $title;
 	}
 
 
-	protected function renderSelf()
+	protected function renderSelf(): void
 	{
 		$this->setupHighlight();
 		$this->parse();
 
 		$title = $this->title;
-		$classes = self::$classes;
+		$classes = self::CLASSES;
 		$files = $this->files;
-		$totalSum = $this->totalSum;
-		$coveredSum = $this->coveredSum;
+		$coveredPercent = $this->getCoveredPercent();
 
 		include __DIR__ . '/template.phtml';
 	}
 
 
-	private function setupHighlight()
+	private function setupHighlight(): void
 	{
-		ini_set('highlight.comment', '#999; font-style: italic');
-		ini_set('highlight.default', '#000');
-		ini_set('highlight.html', '#06B');
-		ini_set('highlight.keyword', '#D24; font-weight: bold');
-		ini_set('highlight.string', '#080');
+		ini_set('highlight.comment', 'hc');
+		ini_set('highlight.default', 'hd');
+		ini_set('highlight.html', 'hh');
+		ini_set('highlight.keyword', 'hk');
+		ini_set('highlight.string', 'hs');
 	}
 
 
-	private function parse()
+	private function parse(): void
 	{
 		if (count($this->files) > 0) {
 			return;
 		}
 
-		$this->files = array();
+		$this->files = [];
+		$commonSourcesPath = Helpers::findCommonDirectory($this->sources) . DIRECTORY_SEPARATOR;
 		foreach ($this->getSourceIterator() as $entry) {
 			$entry = (string) $entry;
 
 			$coverage = $covered = $total = 0;
-			$loaded = isset($this->data[$entry]);
-			$lines = array();
+			$loaded = !empty($this->data[$entry]);
+			$lines = [];
 			if ($loaded) {
 				$lines = $this->data[$entry];
 				foreach ($lines as $flag) {
@@ -101,15 +97,14 @@ class HtmlGenerator extends AbstractGenerator
 			}
 
 			$light = $total ? $total < 5 : count(file($entry)) < 50;
-			$this->files[] = (object) array(
-				'name' => str_replace((is_dir($this->source) ? $this->source : dirname($this->source)) . DIRECTORY_SEPARATOR, '', $entry),
+			$this->files[] = (object) [
+				'name' => str_replace($commonSourcesPath, '', $entry),
 				'file' => $entry,
 				'lines' => $lines,
 				'coverage' => $coverage,
 				'total' => $total,
-				'class' => $light ? 'light' : ($loaded ? NULL : 'not-loaded'),
-			);
+				'class' => $light ? 'light' : ($loaded ? null : 'not-loaded'),
+			];
 		}
 	}
-
 }

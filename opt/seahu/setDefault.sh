@@ -2,23 +2,14 @@
 
 # script set defult seting for sehu component = reset to default setting
 
-# set default Network interfce
-echo -e "iface eth0 inet dhcp\n" > /etc/network/interfaces.d/eth0
+# set default Network interfce (use dhcp)
+/opt/seahu/setNetSeting.sh -I 1
 
 #set default Wifi interface
-
-echo -e "iface wlan0 inet dhcp\n" > /etc/network/interfaces.d/wlan0
-echo -e "	wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf\n" >> /etc/network/interfaces.d/wlan0
-
-echo -e "country=GB\n" > /etc/wpa_supplicant/wpa_supplicant.conf
-echo -e "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n" >> /etc/wpa_supplicant/wpa_supplicant.conf
-echo -e "update_config=1\n" >> /etc/wpa_supplicant/wpa_supplicant.conf
-echo -e "network={\n" >> /etc/wpa_supplicant/wpa_supplicant.conf
-echo -e "}\n" >> /etc/wpa_supplicant/wpa_supplicant.conf
+/opt/seahu/setWifiSeting.sh -W 1 -A AP -I 0 -K GB -S seahu -P 12345678 -C 7 -i 10.17.200.1 -n 255.255.255.0 -a 10.17.200.10 -b 10.17.200.254
 
 # set default services
 /opt/seahu/services/service_domoticz disable
-/opt/seahu/services/service_rex disable
 
 # run lcd menu after start
 echo -e "1" > /etc/seahu/lcd_menu.cfg

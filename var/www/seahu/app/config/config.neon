@@ -24,7 +24,7 @@ services:
 	- App\Forms\FormFactory
 	- App\Forms\SignFormFactory
 	- App\Forms\ChangeFormFactory
-	router: App\RouterFactory::createRouter
+	- App\Router\RouterFactory::createRouter
 
 security:
     users:

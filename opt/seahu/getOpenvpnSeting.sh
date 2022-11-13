@@ -1,12 +1,10 @@
 #!/bin/bash
-if /sbin/ifconfig | grep tun0 > /dev/null ; then
-    echo $(/sbin/ifconfig tun0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
-    echo $(/sbin/ifconfig tun0 | grep 'inet addr:' | cut -d: -f3 | awk '{ print $1}')
-    echo $(/sbin/ifconfig tun0 | grep 'inet addr:' | cut -d: -f4 | awk '{ print $1}')
-else
-    echo ""
-    echo ""
-    echo ""
-fi
 
+# tun_ip
+tun_ip1=$(/sbin/ifconfig tun0 | grep 'inet ' | awk '{ print $2}')
+tun_ip2=$(/sbin/ifconfig tun0 | grep 'inet ' | awk '{ print $6}')
+tun_netmask=$(/sbin/ifconfig tun0 | grep 'netmask ' | awk '{ print $4}')
 
+echo "tun_ip1:$tun_ip1"
+echo "tun_ip2:$tun_ip2"
+echo "tun_netmask:$tun_netmask"

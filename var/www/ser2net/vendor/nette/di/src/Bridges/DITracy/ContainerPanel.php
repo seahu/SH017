@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\DITracy;
 
 use Nette;
@@ -15,72 +17,77 @@ use Tracy;
 /**
  * Dependency injection container panel for Debugger Bar.
  */
-class ContainerPanel extends Nette\Object implements Tracy\IBarPanel
+class ContainerPanel implements Tracy\IBarPanel
 {
-	/** @var int */
+	use Nette\SmartObject;
+
+	/** @var float|null */
 	public static $compilationTime;
 
 	/** @var Nette\DI\Container */
 	private $container;
 
-	/** @var int|NULL */
+	/** @var float|null */
 	private $elapsedTime;
 
 
 	public function __construct(Container $container)
 	{
 		$this->container = $container;
-		$this->elapsedTime = self::$compilationTime ? microtime(TRUE) - self::$compilationTime : NULL;
+		$this->elapsedTime = self::$compilationTime
+			? microtime(true) - self::$compilationTime
+			: null;
 	}
 
 
 	/**
 	 * Renders tab.
-	 * @return string
 	 */
-	public function getTab()
+	public function getTab(): string
 	{
-		ob_start(function () {});
-		$elapsedTime = $this->elapsedTime;
-		require __DIR__ . '/templates/ContainerPanel.tab.phtml';
-		return ob_get_clean();
+		return Nette\Utils\Helpers::capture(function () {
+			$elapsedTime = $this->elapsedTime;
+			require __DIR__ . '/templates/ContainerPanel.tab.phtml';
+		});
 	}
 
 
 	/**
 	 * Renders panel.
-	 * @return string
 	 */
-	public function getPanel()
+	public function getPanel(): string
 	{
-		$container = $this->container;
-		$registry = $this->getContainerProperty('registry');
-		$rc = new \ReflectionClass($container);
-		$file = $rc->getFileName();
-		$tags = array();
-		$meta = $this->getContainerProperty('meta');
-		$services = $meta[Container::SERVICES];
-		ksort($services);
-		if (isset($meta[Container::TAGS])) {
-			foreach ($meta[Container::TAGS] as $tag => $tmp) {
-				foreach ($tmp as $service => $val) {
-					$tags[$service][$tag] = $val;
-				}
+		$rc = new \ReflectionClass($this->container);
+		$tags = [];
+		$types = [];
+		foreach ($rc->getMethods() as $method) {
+			if (preg_match('#^createService(.+)#', $method->name, $m) && $method->getReturnType()) {
+				$types[lcfirst(str_replace('__', '.', $m[1]))] = $method->getReturnType()->getName();
 			}
 		}
 
-		ob_start(function () {});
-		require __DIR__ . '/templates/ContainerPanel.panel.phtml';
-		return ob_get_clean();
+		$types = $this->getContainerProperty('types') + $types;
+		ksort($types, SORT_NATURAL);
+		foreach ($this->getContainerProperty('tags') as $tag => $tmp) {
+			foreach ($tmp as $service => $val) {
+				$tags[$service][$tag] = $val;
+			}
+		}
+
+		return Nette\Utils\Helpers::capture(function () use ($tags, $types, $rc) {
+			$container = $this->container;
+			$file = $rc->getFileName();
+			$instances = $this->getContainerProperty('instances');
+			$wiring = $this->getContainerProperty('wiring');
+			require __DIR__ . '/templates/ContainerPanel.panel.phtml';
+		});
 	}
 
 
-	private function getContainerProperty($name)
+	private function getContainerProperty(string $name)
 	{
-		$rc = new \ReflectionClass('Nette\DI\Container');
-		$prop = $rc->getProperty($name);
-		$prop->setAccessible(TRUE);
+		$prop = (new \ReflectionClass(Nette\DI\Container::class))->getProperty($name);
+		$prop->setAccessible(true);
 		return $prop->getValue($this->container);
 	}
-
 }

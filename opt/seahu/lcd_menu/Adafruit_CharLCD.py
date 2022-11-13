@@ -80,7 +80,7 @@ class Adafruit_CharLCD(object):
         self.backlight = backlight
         # Setup all pins as outputs.
         # Setup backlight.
-	self.backlight=False
+        self.backlight=False
         if backlight is not None:
             self.LCDon()
         # Initialize the display.
@@ -93,35 +93,35 @@ class Adafruit_CharLCD(object):
         self.LEFT                    = 0xFE
         self.ESC                     = 0xDF
 
-	# variables for control speed keys (buttons)
-	self.buttonCount=0
-	self.lastButton=0xFF
-	self.buttonTime=0
-	self.buttonSleep=0.25
-	self.beepDuration=0.1
+        # variables for control speed keys (buttons)
+        self.buttonCount=0
+        self.lastButton=0xFF
+        self.buttonTime=0
+        self.buttonSleep=0.25
+        self.beepDuration=0.1
 
-	#beep
-	self.pin=12
-	GPIO.setmode(GPIO.BOARD)
-	GPIO.setup(self.pin, GPIO.OUT)
+        #beep
+        self.pin=12
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.pin, GPIO.OUT)
 
     def LCDon(self):
-	if self.backlight==True: return
-	mask=0x40
-	Imask=mask^0xFF
-	key_mask=0x3f
-	self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)|mask|key_mask)
-	self.backlight=True
+        if self.backlight==True: return
+        mask=0x40
+        Imask=mask^0xFF
+        key_mask=0x3f
+        self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)|mask|key_mask)
+        self.backlight=True
 
 
 
     def LCDoff(self):
-	if self.backlight==False: return
-	mask=0x40
-	Imask=mask^0xFF
-	key_mask=0x3f
-	self.bus.write_byte(self.addr_i2c, (self.bus.read_byte(self.addr_i2c)|key_mask)&Imask)
-	self.backlight=False
+        if self.backlight==False: return
+        mask=0x40
+        Imask=mask^0xFF
+        key_mask=0x3f
+        self.bus.write_byte(self.addr_i2c, (self.bus.read_byte(self.addr_i2c)|key_mask)&Imask)
+        self.backlight=False
 
     def home(self):
         """Move the cursor back to its home (first line and first column)."""
@@ -130,25 +130,25 @@ class Adafruit_CharLCD(object):
 
     def clear_direct(self):
         """Clear the LCD."""
-	lcd_clear()
+        lcd_clear()
 
     def clear(self):
         """Clear the LCD."""
         # use tcp socken on localhost with port 10000 to send display service
         # display service use before more proces can by use display on some time
-	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	client_socket.connect(('localhost', 10000))
-	client_socket.send("c")
-	client_socket.close()
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(('localhost', 10000))
+        client_socket.send("c".encode('ascii'))
+        client_socket.close()
 
     def  image(self,image):
-	#image is name of image stored into /opt/sehu/lcd_images andmust be balck and white with resolution 128x64px
+        #image is name of image stored into /opt/sehu/lcd_images andmust be balck and white with resolution 128x64px
         # use tcp socken on localhost with port 10000 to send display service
         # display service use before more proces can by use display on some time
-	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	client_socket.connect(('localhost', 10000))
-	client_socket.send("m,%s" %image)
-	client_socket.close()
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(('localhost', 10000))
+        client_socket.send( ("m,%s" %image).encode('ascii') )
+        client_socket.close()
 
     def set_cursor(self, col, row):
         """Move the cursor to an explicit column and row position."""
@@ -212,26 +212,26 @@ class Adafruit_CharLCD(object):
         """Write text to display.  Note that text can include newlines."""
         # use tcp socken on localhost with port 10000 to send display service
         # display service use before more proces can by use display on some time
-	print "-------"
-	print self.curX, self.curY
-	print text
-	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	client_socket.connect(('localhost', 10000))
-	x="%d" %self.curX
-	if len(x)==1: x="0"+x
-	y="%d" %self.curY
-	if len(y)==1: y="0"+y
-	if inversion: i="i"
-	else : i="p"
-	client_socket.send("%s,%s,%s,%s" %(i,x,y,text))
-	client_socket.close()
-	time.sleep(0.1)
+        print("-------")
+        print(self.curX, self.curY)
+        print(text)
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(('localhost', 10000))
+        x="%d" %self.curX
+        if len(x)==1: x="0"+x
+        y="%d" %self.curY
+        if len(y)==1: y="0"+y
+        if inversion: i="i"
+        else : i="p"
+        client_socket.send( ("%s,%s,%s,%s" %(i,x,y,text)).encode('ascii') )
+        client_socket.close()
+        time.sleep(0.1)
 
     def message_direct(self, text, inversion=False):
         """Write text to display.  Note that text can include newlines."""
-	print "-------"
-	print self.curX, self.curY
-	print text
+        print("-------")
+        print(self.curX, self.curY)
+        print(text)
         line = 0
         # Iterate through each character.
         for char in text:
@@ -262,45 +262,45 @@ class Adafruit_CharLCD(object):
             pass
 
     def beep(self):
-	mask=0x80
-	Imask=mask^0xFF
-	key_mask=0x3f
-	self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)&Imask)
-	GPIO.output(self.pin, 1)
-	time.sleep(self.beepDuration)
-	GPIO.output(self.pin, 0)
-	self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)|mask|key_mask)
+        mask=0x80
+        Imask=mask^0xFF
+        key_mask=0x3f
+        self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)&Imask)
+        GPIO.output(self.pin, 1)
+        time.sleep(self.beepDuration)
+        GPIO.output(self.pin, 0)
+        self.bus.write_byte(self.addr_i2c, self.bus.read_byte(self.addr_i2c)|mask|key_mask)
 
 
     def buttonPressed(self, button):
-	#global variable buttonTime set speed of keys
-	global buttonCount
-	global lastButton
-	global buttonTime
+        #global variable buttonTime set speed of keys
+        global buttonCount
+        global lastButton
+        global buttonTime
         """Return True if the provided button is pressed, False otherwise."""
         if button not in set((SELECT, RIGHT, DOWN, UP, LEFT, ESC)):
             raise ValueError('Unknown button, must be SELECT, RIGHT, DOWN, UP, LEFT, or ESC .')
-	buttonCode = self.bus.read_byte(self.addr_i2c)|0xC0
-	# check when button was pressed for change  sped ok key
-	if self.lastButton!=buttonCode:
-	    self.buttonTime=time.time()
-	    print "last button code  :", self.lastButton
-	    print "actual button code:", buttonCode
+        buttonCode = self.bus.read_byte(self.addr_i2c)|0xC0
+        # check when button was pressed for change  sped ok key
+        if self.lastButton!=buttonCode:
+            self.buttonTime=time.time()
+            print("last button code  :", self.lastButton)
+            print("actual button code:", buttonCode)
         #if self.bus.read_byte(self.addr_i2c)|0xC0 == button:
-	if buttonCode == button:
-	    #check spee of repeate pressed key
-	    if time.time()-self.buttonTime>1.25:
-		print "fast"
-		self.buttonSleep=0.01
-		self.beepDuration=0.001
-	    else:
-		print "slow"
-		self.buttonSleep=0.5
-		self.beepDuration=0.1
+        if buttonCode == button:
+            #check spee of repeate pressed key
+            if time.time()-self.buttonTime>1.25:
+                print("fast")
+                self.buttonSleep=0.01
+                self.beepDuration=0.001
+            else:
+                print("slow")
+                self.buttonSleep=0.5
+                self.beepDuration=0.1
             self.beep()
-	    self.lastButton=buttonCode
+            self.lastButton=buttonCode
             return True
-	self.lastButton=buttonCode
+        self.lastButton=buttonCode
         return False
 
 

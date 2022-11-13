@@ -1,0 +1,58 @@
+{**
+ * @param string   $basePath web base path
+ * @param array    $flashes  flash messages
+ *}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+
+	<title>{ifset title}{include title|striptags} | {/ifset}Nette Sandbox</title>
+
+	<link rel="stylesheet" href="{$basePath}/css/style.css">
+	<link rel="stylesheet" href="{$basePath}/css/seahuStyle.css">
+	<meta name="viewport" content="width=device-width">
+	{block head}{/block}
+</head>
+
+<body>
+	<div n:foreach="$flashes as $flash" n:class="flash, $flash->type">{$flash->message}</div>
+	<div class="navig">
+		 <img src="{$basePath}/images/point_1x1.png" id="img_line" >
+	    <a href="http://www.seahu.cz"><img src="{$basePath}/images/logo_v2.svg" id="img_logo"></a>
+		 <div class="buttonLeft">
+	    <a n:href="Homepage:">Home</a></li>
+	    </div>
+	    <div class="buttonRight">
+		    {if $user->loggedIn}
+		        <a n:href="Sign:out">Logout</a></li>
+		    {else}
+		        <a n:href="Sign:in">Login</a></li>
+		    {/if}
+	    </div>	    
+	</div>
+	<br>
+	<div id="menu" class="menu">
+		<a href="{link Net:}" class="mybutton">Network</a><br>
+		<a href="{link Wifi:}" class="mybutton">Wifi</a><br>
+		<a href="{link Openvpn:}" class="mybutton">OpenVPN</a><br>
+		<a href="{link Time:}" class="mybutton">Time</a><br>
+		<a href="{link Hw:}" class="mybutton">HW</a><br>
+		{if $user->loggedIn}
+			<a n:href="Sign:change" class="mybutton">Change passwd</a><br>
+			<a n:href="Power:" class="mybutton">Power</a><br>
+			<a href="https://{$this_server_ip}:4200" width="100%" height="100%" class="mybutton">Terminal</a><br>
+		{/if}
+		<a href="{link Servicies:}" class="mybutton">Services</a><br>
+		<a href="{link Help:}" class="mybutton">Help</a><br>
+	</div>
+	<div class="content">
+	{include content}
+	</div>
+	{block scripts}
+	<script src="{$basePath}/js/jquery-1.12.0.min.js"></script>
+	<script src="{$basePath}/js/netteForms.min.js"></script>
+	<script src="{$basePath}/js/main.js"></script>
+	{/block}
+</body>
+</html>

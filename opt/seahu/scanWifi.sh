@@ -5,12 +5,13 @@
 #echo " mac                 essid         frq   chn qual   lvl  enc"
 
 ## test if wlan is up (for scan, cannot be set IP, netmask, .. ,but  must be up)
-if ifconfig | grep wlan0 > /dev/null ; then
+if ip link show wlan0 | grep "state UP" > /dev/null ; then
     wlanstatus="up"
 else
     wlanstatus="down"
-    ifconfig wlan0 up
+    rfkill unblock wifi
 fi
+
 
 #while IFS= read -r line; do
 iwlist wlan0 scan | while read line; do
@@ -36,5 +37,5 @@ iwlist wlan0 scan | while read line; do
 done
 
 if [ $wlanstatus = "down" ] ; then
-    ifconfig wlan0 down
+    rfkill block wifi
 fi

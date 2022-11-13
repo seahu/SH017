@@ -5,9 +5,12 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
+use Nette\Utils\Html;
 
 
 /**
@@ -15,92 +18,82 @@ use Nette;
  */
 class Checkbox extends BaseControl
 {
-	/** @var Nette\Utils\Html  wrapper element template */
-	private $wrapper;
+	/** @var Html  wrapper element template */
+	private $container;
 
 
 	/**
-	 * @param  string  label
+	 * @param  string|object  $label
 	 */
-	public function __construct($label = NULL)
+	public function __construct($label = null)
 	{
 		parent::__construct($label);
 		$this->control->type = 'checkbox';
-		$this->wrapper = Nette\Utils\Html::el();
+		$this->container = Html::el();
+		$this->setOption('type', 'checkbox');
 	}
 
 
 	/**
 	 * Sets control's value.
-	 * @param  bool
-	 * @return self
+	 * @return static
 	 * @internal
 	 */
 	public function setValue($value)
 	{
-		if (!is_scalar($value) && $value !== NULL) {
-			throw new Nette\InvalidArgumentException(sprintf("Value must be scalar or NULL, %s given in field '%s'.", gettype($value), $this->name));
+		if (!is_scalar($value) && $value !== null) {
+			throw new Nette\InvalidArgumentException(sprintf("Value must be scalar or null, %s given in field '%s'.", gettype($value), $this->name));
 		}
 		$this->value = (bool) $value;
 		return $this;
 	}
 
 
-	/**
-	 * Is control filled?
-	 * @return bool
-	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
-		return $this->getValue() !== FALSE; // back compatibility
+		return $this->getValue() !== false; // back compatibility
 	}
 
 
-	/**
-	 * Generates control's HTML element.
-	 * @return Nette\Utils\Html
-	 */
-	public function getControl()
+	public function getControl(): Html
 	{
-		return $this->wrapper->setHtml($this->getLabelPart()->insert(0, $this->getControlPart()));
+		return $this->container->setHtml($this->getLabelPart()->insert(0, $this->getControlPart()));
 	}
 
 
 	/**
 	 * Bypasses label generation.
-	 * @return void
 	 */
-	public function getLabel($caption = NULL)
+	public function getLabel($caption = null)
 	{
-		return NULL;
+		return null;
 	}
 
 
-	/**
-	 * @return Nette\Utils\Html
-	 */
-	public function getControlPart()
+	public function getControlPart(): Html
 	{
 		return parent::getControl()->checked($this->value);
 	}
 
 
-	/**
-	 * @return Nette\Utils\Html
-	 */
-	public function getLabelPart()
+	public function getLabelPart(): Html
 	{
 		return parent::getLabel();
 	}
 
 
 	/**
-	 * Returns wrapper HTML element template.
-	 * @return Nette\Utils\Html
+	 * Returns container HTML element template.
 	 */
-	public function getSeparatorPrototype()
+	public function getContainerPrototype(): Html
 	{
-		return $this->wrapper;
+		return $this->container;
 	}
 
+
+	/** @deprecated  use getContainerPrototype() */
+	public function getSeparatorPrototype(): Html
+	{
+		return $this->container;
+	}
 }

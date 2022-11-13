@@ -5,10 +5,13 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner\Output;
 
 use Tester;
 use Tester\Runner\Runner;
+use Tester\Runner\Test;
 
 
 /**
@@ -22,47 +25,64 @@ class Logger implements Tester\Runner\OutputHandler
 	/** @var resource */
 	private $file;
 
+	/** @var int */
+	private $count;
 
-	public function __construct(Runner $runner, $file = 'php://output')
+	/** @var array */
+	private $results;
+
+
+	public function __construct(Runner $runner, string $file = null)
 	{
 		$this->runner = $runner;
-		$this->file = fopen($file, 'w');
+		$this->file = fopen($file ?: 'php://output', 'w');
 	}
 
 
-	public function begin()
+	public function begin(): void
 	{
+		$this->count = 0;
+		$this->results = [
+			Test::PASSED => 0,
+			Test::SKIPPED => 0,
+			Test::FAILED => 0,
+		];
 		fwrite($this->file, 'PHP ' . $this->runner->getInterpreter()->getVersion()
 			. ' | ' . $this->runner->getInterpreter()->getCommandLine()
 			. " | {$this->runner->threadCount} threads\n\n");
 	}
 
 
-	public function result($testName, $result, $message)
+	public function prepare(Test $test): void
 	{
-		$message = '   ' . str_replace("\n", "\n   ", Tester\Dumper::removeColors(trim($message)));
-		$outputs = array(
-			Runner::PASSED => "-- OK: $testName",
-			Runner::SKIPPED => "-- Skipped: $testName\n$message",
-			Runner::FAILED => "-- FAILED: $testName\n$message",
-		);
-		fwrite($this->file, $outputs[$result] . "\n\n");
+		$this->count++;
 	}
 
 
-	public function end()
+	public function finish(Test $test): void
 	{
-		$jobCount = $this->runner->getJobCount();
-		$results = $this->runner->getResults();
-		$count = array_sum($results);
-		fwrite($this->file,
-			($results[Runner::FAILED] ? 'FAILURES!' : 'OK')
-			. " ($jobCount tests"
-			. ($results[Runner::FAILED] ? ", {$results[Runner::FAILED]} failures" : '')
-			. ($results[Runner::SKIPPED] ? ", {$results[Runner::SKIPPED]} skipped" : '')
-			. ($jobCount !== $count ? ', ' . ($jobCount - $count) . ' not run' : '')
+		$this->results[$test->getResult()]++;
+		$message = '   ' . str_replace("\n", "\n   ", Tester\Dumper::removeColors(trim((string) $test->message)));
+		$outputs = [
+			Test::PASSED => "-- OK: {$test->getSignature()}",
+			Test::SKIPPED => "-- Skipped: {$test->getSignature()}\n$message",
+			Test::FAILED => "-- FAILED: {$test->getSignature()}\n$message",
+		];
+		fwrite($this->file, $outputs[$test->getResult()] . "\n\n");
+	}
+
+
+	public function end(): void
+	{
+		$run = array_sum($this->results);
+		fwrite(
+			$this->file,
+			($this->results[Test::FAILED] ? 'FAILURES!' : 'OK')
+			. " ($this->count tests"
+			. ($this->results[Test::FAILED] ? ", {$this->results[Test::FAILED]} failures" : '')
+			. ($this->results[Test::SKIPPED] ? ", {$this->results[Test::SKIPPED]} skipped" : '')
+			. ($this->count !== $run ? ', ' . ($this->count - $run) . ' not run' : '')
 			. ')'
 		);
 	}
-
 }

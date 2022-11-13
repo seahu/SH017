@@ -4,6 +4,8 @@
  * Nette Forms localization example.
  */
 
+declare(strict_types=1);
+
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
 	die('Install packages using `composer install`');
@@ -17,21 +19,23 @@ use Tracy\Dumper;
 Debugger::enable();
 
 
-class MyTranslator implements Nette\Localization\ITranslator
+class MyTranslator implements Nette\Localization\Translator
 {
 	private $table;
 
-	function __construct(array $table)
+
+	public function __construct(array $table)
 	{
 		$this->table = $table;
 	}
 
+
 	/**
 	 * Translates the given string.
 	 */
-	public function translate($message, $count = NULL)
+	public function translate($message, ...$parameters): string
 	{
-		return isset($this->table[$message]) ? $this->table[$message] : $message;
+		return $this->table[$message] ?? $message;
 	}
 }
 
@@ -48,16 +52,16 @@ $form->addText('name', 'Your name:')
 $form->addText('age', 'Your age:')
 	->setRequired('Enter your age')
 	->addRule($form::INTEGER, 'Age must be numeric value')
-	->addRule($form::RANGE, 'Age must be in range from %d to %d', array(10, 100));
+	->addRule($form::RANGE, 'Age must be in range from %d to %d', [10, 100]);
 
-$countries = array(
-	'World' => array(
+$countries = [
+	'World' => [
 		'bu' => 'Buranda',
 		'qu' => 'Qumran',
 		'st' => 'Saint Georges Island',
-	),
+	],
 	'?' => 'other',
-);
+];
 $form->addSelect('country', 'Country:', $countries)
 	->setPrompt('Select your country');
 
@@ -76,10 +80,10 @@ if ($form->isSuccess()) {
 <meta charset="utf-8">
 <title>Nette Forms localization example</title>
 <link rel="stylesheet" media="screen" href="assets/style.css" />
-<script src="https://nette.github.io/resources/js/netteForms.js"></script>
+<script src="https://nette.github.io/resources/js/3/netteForms.js"></script>
 
 <h1>Nette Forms localization example</h1>
 
-<?php echo $form ?>
+<?php $form->render() ?>
 
 <footer><a href="https://doc.nette.org/en/forms">see documentation</a></footer>

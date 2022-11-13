@@ -1,4 +1,0 @@
-allow-hotplug wwan0
-iface wwan0 inet dhcp
-    wwan_apn  "internet.t-mobile.cz"
-    wwan_debug 1

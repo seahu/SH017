@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\HttpTracy;
 
 use Nette;
@@ -14,30 +16,28 @@ use Tracy;
 /**
  * Session panel for Debugger Bar.
  */
-class SessionPanel extends Nette\Object implements Tracy\IBarPanel
+class SessionPanel implements Tracy\IBarPanel
 {
+	use Nette\SmartObject;
 
 	/**
 	 * Renders tab.
-	 * @return string
 	 */
-	public function getTab()
+	public function getTab(): string
 	{
-		ob_start(function () {});
-		require __DIR__ . '/templates/SessionPanel.tab.phtml';
-		return ob_get_clean();
+		return Nette\Utils\Helpers::capture(function () {
+			require __DIR__ . '/templates/SessionPanel.tab.phtml';
+		});
 	}
 
 
 	/**
 	 * Renders panel.
-	 * @return string
 	 */
-	public function getPanel()
+	public function getPanel(): string
 	{
-		ob_start(function () {});
-		require __DIR__ . '/templates/SessionPanel.panel.phtml';
-		return ob_get_clean();
+		return Nette\Utils\Helpers::capture(function () {
+			require __DIR__ . '/templates/SessionPanel.panel.phtml';
+		});
 	}
-
 }

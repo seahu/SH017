@@ -5,16 +5,18 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database\Conventions;
 
-use Nette\Database\IConventions;
+use Nette\Database\Conventions;
 use Nette\Database\IStructure;
 
 
 /**
  * Conventions based on database structure.
  */
-class DiscoveredConventions implements IConventions
+class DiscoveredConventions implements Conventions
 {
 	/** @var IStructure */
 	protected $structure;
@@ -26,33 +28,33 @@ class DiscoveredConventions implements IConventions
 	}
 
 
-	public function getPrimary($table)
+	public function getPrimary(string $table)
 	{
 		return $this->structure->getPrimaryKey($table);
 	}
 
 
-	public function getHasManyReference($nsTable, $key)
+	public function getHasManyReference(string $nsTable, string $key): ?array
 	{
-		$candidates = $columnCandidates = array();
+		$candidates = $columnCandidates = [];
 		$targets = $this->structure->getHasManyReference($nsTable);
 		$table = preg_replace('#^(.*\.)?(.*)$#', '$2', $nsTable);
 
 		foreach ($targets as $targetNsTable => $targetColumns) {
 			$targetTable = preg_replace('#^(.*\.)?(.*)$#', '$2', $targetNsTable);
-			if (stripos($targetNsTable, $key) === FALSE) {
+			if (stripos($targetNsTable, $key) === false) {
 				continue;
 			}
 
 			foreach ($targetColumns as $targetColumn) {
-				if (stripos($targetColumn, $table) !== FALSE) {
-					$columnCandidates[] = $candidate = array($targetNsTable, $targetColumn);
+				if (stripos($targetColumn, $table) !== false) {
+					$columnCandidates[] = $candidate = [$targetNsTable, $targetColumn];
 					if (strcmp($targetTable, $key) === 0 || strcmp($targetNsTable, $key) === 0) {
 						return $candidate;
 					}
 				}
 
-				$candidates[] = array($targetTable, array($targetNsTable, $targetColumn));
+				$candidates[] = [$targetTable, [$targetNsTable, $targetColumn]];
 			}
 		}
 
@@ -73,7 +75,7 @@ class DiscoveredConventions implements IConventions
 		}
 
 		if ($this->structure->isRebuilt()) {
-			return NULL;
+			return null;
 		}
 
 		$this->structure->rebuild();
@@ -81,22 +83,21 @@ class DiscoveredConventions implements IConventions
 	}
 
 
-	public function getBelongsToReference($table, $key)
+	public function getBelongsToReference(string $table, string $key): ?array
 	{
 		$tableColumns = $this->structure->getBelongsToReference($table);
 
 		foreach ($tableColumns as $column => $targetTable) {
-			if (stripos($column, $key) !== FALSE) {
-				return array($targetTable, $column);
+			if (stripos($column, $key) !== false) {
+				return [$targetTable, $column];
 			}
 		}
 
 		if ($this->structure->isRebuilt()) {
-			return NULL;
+			return null;
 		}
 
 		$this->structure->rebuild();
 		return $this->getBelongsToReference($table, $key);
 	}
-
 }

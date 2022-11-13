@@ -5,45 +5,49 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace NetteModule;
 
 use Nette;
 use Nette\Application;
+use Nette\Http;
 use Tracy\ILogger;
 
 
 /**
  * Default Error Presenter.
  */
-class ErrorPresenter extends Nette\Object implements Application\IPresenter
+final class ErrorPresenter implements Application\IPresenter
 {
-	/** @var ILogger|NULL */
+	use Nette\SmartObject;
+
+	/** @var ILogger|null */
 	private $logger;
 
 
-	public function __construct(ILogger $logger = NULL)
+	public function __construct(?ILogger $logger = null)
 	{
 		$this->logger = $logger;
 	}
 
 
-	/**
-	 * @return Application\IResponse
-	 */
-	public function run(Application\Request $request)
+	public function run(Application\Request $request): Application\Response
 	{
 		$e = $request->getParameter('exception');
 		if ($e instanceof Application\BadRequestException) {
-			$code = $e->getCode();
+			$code = $e->getHttpCode();
 		} else {
 			$code = 500;
 			if ($this->logger) {
 				$this->logger->log($e, ILogger::EXCEPTION);
 			}
 		}
-		return new Application\Responses\CallbackResponse(function () use ($code) {
-			require __DIR__ . '/templates/error.phtml';
+
+		return new Application\Responses\CallbackResponse(function (Http\IRequest $httpRequest, Http\IResponse $httpResponse) use ($code): void {
+			if (preg_match('#^text/html(?:;|$)#', (string) $httpResponse->getHeader('Content-Type'))) {
+				require __DIR__ . '/templates/error.phtml';
+			}
 		});
 	}
-
 }

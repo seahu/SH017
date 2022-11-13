@@ -1,0 +1,163 @@
+'\"
+'\" Copyright (c) 2007 Paul H Alfille, MD
+'\" (paul.alfille@gmail.com)
+'\"
+'\" Device manual page for owtap -- 1-wire filesystem package
+'\" Protocol sniffer for owserver tcp protocol
+'\"
+'\" Free for all use. No warranty. None. Use at your own risk.
+'\"
+.TH OWMON 1 2007 "OWTAP Manpage" "One-Wire File System"
+.SH NAME
+.B owmon
+\- Monitor for owserver settings and statistics 
+.SH SYNOPSIS
+.B owmon
+.I \-s
+owserver-tcp-port
+.br
+.SH "DESCRIPTION"
+'\"
+'\" Copyright (c) 2003-2004 Paul H Alfille, MD
+'\" (paul.alfille@gmail.com)
+'\"
+'\" Program manual page for the OWFS -- 1-wire filesystem package
+'\" Based on Dallas Semiconductor, Inc's datasheets, and trial and error.
+'\"
+'\" Free for all use. No warranty. None. Use at your own risk.
+'\"
+.SS 1-Wire
+.I 1-wire 
+is a wiring protocol and series of devices designed and manufactured
+by Dallas Semiconductor, Inc. The bus is a low-power low-speed low-connector
+scheme where the data line can also provide power.
+.PP
+Each device is uniquely and unalterably numbered during manufacture. There are a wide variety
+of devices, including memory, sensors (humidity, temperature, voltage,
+contact, current), switches, timers and data loggers. More complex devices (like
+thermocouple sensors) can be built with these basic devices. There are also
+1-wire devices that have encryption included.
+.PP
+The 1-wire scheme uses a single 
+.I bus master
+and multiple
+.I slaves
+on the same wire. The bus master initiates all communication. The slaves can be 
+individually discovered and addressed using their unique ID.
+.PP
+Bus masters come in a variety of configurations including serial, parallel, i2c, network or USB
+adapters.
+.SS OWFS design
+.I OWFS
+is a suite of programs that designed to make the 1-wire bus and its
+devices easily accessible. The underlying principle is to create a virtual
+filesystem, with the unique ID being the directory, and the individual
+properties of the device are represented as simple files that can be read and written.
+.PP 
+Details of the individual slave or master design are hidden behind a consistent interface. The goal is to 
+provide an easy set of tools for a software designer to create monitoring or control applications. There 
+are some performance enhancements in the implementation, including data caching, parallel access to bus 
+masters, and aggregation of device communication. Still the fundamental goal has been ease of use, flexibility
+and correctness rather than speed.
+.SS owserver
+.B owserver (1)
+is the backend component of the OWFS 1-wire bus control system.
+.B owserver (1)
+arbitrates access to the bus from multiple client processes. The physical bus is usually connected to a serial or USB port, and other processes connect to
+.B owserver (1)
+over network sockets (tcp port).
+.PP
+Frontend clients include a filesystem representation:
+.B owfs (1)
+, and a webserver:
+.B owhttpd (1).
+Direct language bindings are also available, e.g:
+.B owperl (3).
+.PP
+There are also many light-weight clients that can only talk to 
+.B owserver (1)
+and not to the 1-Wire bus directly. They include shell and multiple language modules (perl, Visual Basic, python,...)
+.SS owserver protocol
+All the
+.B owserver (1)
+clients use the
+.B owserver protocol
+for communication. The
+.B owserver protocol
+is a well documented tcp/ip client/server protocol. Assigned the "well known port" default of 4304. 
+.SS owmon
+.B owmon (1)
+is connects to
+.B owserver (1)
+and displays the bus structure and contents of the interface, statistics and settings directories.
+.SH SPECIFIC OPTIONS
+.SS \-s
+TCP port or IPaddress:port for
+.I owserver
+.br
+The tcp port (IP:port) for the "upstream" owserver.
+.SH EXAMPLE
+If
+.B owserver (1)
+is started:
+.br
+.B owserver -p 4304 -d /dev/ttyS0
+.br
+owserver on tcp port 4304 and connects to a physical 1-wire bus on a serial port.
+.PP
+You can monitor 
+.B owserver (1)
+with
+.br
+.B owmon -s 4304 /
+.SH PLATFOMS
+.B owmon (1)
+is a pure
+.I Tcl/TK
+program and will run wherever
+.I Tcl/TK
+is available (Windows, Macintosh, Linux, Unix)
+.SH LINKS
+.SS owserver protocol
+http://www.owfs.org/index.php?page=owserver-protocol
+.SS Tcl/TK
+http://www.tcl.tk
+.SH SEE ALSO
+.SS Programs
+.B owfs (1) owhttpd (1) owftpd (1) owserver (1)
+.B owdir (1) owread (1) owwrite (1) owpresent (1)
+.B owtap (1)
+.SS Configuration and testing
+.B owfs (5) owfs.aliasfile (5) owtap (1) owmon (1)
+.SS Language bindings
+.B owtcl (3) owperl (3) owcapi (3)
+.SS Clocks
+.B DS1427 (3) DS1904(3) DS1994 (3) DS2404 (3) DS2404S (3) DS2415 (3) DS2417 (3)
+.SS ID
+.B DS2401 (3) DS2411 (3) DS1990A (3)
+.SS Memory
+.B DS1982 (3) DS1985 (3) DS1986 (3) DS1991 (3) DS1992 (3) DS1993 (3) DS1995 (3) DS1996 (3) DS2430A (3) DS2431 (3) DS2433 (3) DS2502 (3) DS2506 (3) DS28E04 (3) DS28EC20 (3)
+.SS Switches
+.B DS2405 (3) DS2406 (3) DS2408 (3) DS2409 (3) DS2413 (3) DS28EA00 (3)
+.SS Temperature
+.B DS1822 (3) DS1825 (3) DS1820 (3) DS18B20 (3) DS18S20 (3) DS1920 (3) DS1921 (3) DS1821 (3) DS28EA00 (3) DS28E04 (3)
+.SS Humidity
+.B DS1922 (3)
+.SS Voltage
+.B DS2450 (3)
+.SS Resistance
+.B DS2890 (3)
+.SS Multifunction (current, voltage, temperature)
+.B DS2436 (3) DS2437 (3) DS2438 (3) DS2751 (3) DS2755 (3) DS2756 (3) DS2760 (3) DS2770 (3) DS2780 (3) DS2781 (3) DS2788 (3) DS2784 (3)
+.SS Counter
+.B DS2423 (3)
+.SS LCD Screen
+.B LCD (3) DS2408 (3)
+.SS Crypto
+.B DS1977 (3)
+.SS Pressure
+.B DS2406 (3) -- TAI8570
+.SH AVAILABILITY
+http://www.owfs.org
+.SH AUTHOR
+Paul Alfille (paul.alfille@gmail.com)

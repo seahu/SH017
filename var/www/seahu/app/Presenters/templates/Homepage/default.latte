@@ -1,0 +1,43 @@
+{block content}
+
+{if $emptny==true}
+	<h2>Not runing serices</h2>
+	Go to menu service select your prefered service and get it start.
+{else}
+	<h1>Running Services</H1>
+	<div class="services">
+	{foreach $services as $service}
+		{if $service['status']==true}
+			<table>
+				<tr>
+					<td>
+						<div class="service">
+							<table>
+								<tr>
+									<td>
+										<div class="service_title">
+											{$service['title']}
+										</div>
+										<div class="service_preview">
+												<a href="{$service['link']}"><image src="{$basePath}/images/{$service['preview']}"></a>
+										</div>
+										<div class="service_logo">
+											<a href="{$service['homePage']}"><image src="{$basePath}/images/{$service['logo']}"></a>
+										</div>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</td>
+					<td>
+						<div class="service_description">
+							{$service['description']}
+						</div>
+					</td>
+				</tr>
+			</table>
+		{/if}
+	{/foreach}
+	</div>
+{/if}
+{/block}

@@ -1,0 +1,32 @@
+{block content}
+<div id="net">
+	<h1> OpenVPN Status </h1>
+	{if $enable }
+		<table>
+			<tr>
+				<td>Status:</td>
+				<td><b>Enabled</b></td>
+			</tr>
+			<tr>
+				<td>IP local:</td>
+				<td>{$tun_ip1}</td>
+			</tr>
+			<tr>
+				<td>IP remote:</td>
+				<td>{$tun_ip2}</td>
+			</tr>
+			<tr>
+				<td>netmask:</td>
+				<td>
+					{$tun_netmask}
+				</td>
+			</tr>
+		</table>
+	{else}
+		OpenVPN is disable
+	{/if}
+	{if $user->loggedIn}
+		<p><a n:href="Openvpn:updateOpenvpnForm" class="mybutton"> Edit openVPN setting</a></p>
+	{/if}
+
+</div>

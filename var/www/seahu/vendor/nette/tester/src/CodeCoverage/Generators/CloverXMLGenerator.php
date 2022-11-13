@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\CodeCoverage\Generators;
 
 use DOMDocument;
@@ -14,8 +16,7 @@ use Tester\CodeCoverage\PhpParser;
 
 class CloverXMLGenerator extends AbstractGenerator
 {
-
-	private static $metricAttributesMap = array(
+	private static $metricAttributesMap = [
 		'packageCount' => 'packages',
 		'fileCount' => 'files',
 		'linesOfCode' => 'loc',
@@ -29,25 +30,25 @@ class CloverXMLGenerator extends AbstractGenerator
 		'coveredElementCount' => 'coveredelements',
 		'conditionalCount' => 'conditionals',
 		'coveredConditionalCount' => 'coveredconditionals',
-	);
+	];
 
 
-	public function __construct($file, $source = NULL)
+	public function __construct(string $file, array $sources = [])
 	{
-		if (!extension_loaded('dom')) {
-			throw new \LogicException('CloverXML generator requires DOM extension to be loaded.');
+		if (!extension_loaded('dom') || !extension_loaded('tokenizer')) {
+			throw new \LogicException('CloverXML generator requires DOM and Tokenizer extensions to be loaded.');
 		}
-		parent::__construct($file, $source);
+		parent::__construct($file, $sources);
 	}
 
 
-	protected function renderSelf()
+	protected function renderSelf(): void
 	{
-		$time = time();
+		$time = (string) time();
 		$parser = new PhpParser;
 
 		$doc = new DOMDocument;
-		$doc->formatOutput = TRUE;
+		$doc->formatOutput = true;
 
 		$elCoverage = $doc->appendChild($doc->createElement('coverage'));
 		$elCoverage->setAttribute('generated', $time);
@@ -57,7 +58,7 @@ class CloverXMLGenerator extends AbstractGenerator
 		$elProject->setAttribute('timestamp', $time);
 		$elProjectMetrics = $elProject->appendChild($doc->createElement('metrics'));
 
-		$projectMetrics = (object) array(
+		$projectMetrics = (object) [
 			'packageCount' => 0,
 			'fileCount' => 0,
 			'linesOfCode' => 0,
@@ -71,14 +72,19 @@ class CloverXMLGenerator extends AbstractGenerator
 			'coveredElementCount' => 0,
 			'conditionalCount' => 0,
 			'coveredConditionalCount' => 0,
-		);
+		];
 
 		foreach ($this->getSourceIterator() as $file) {
 			$file = (string) $file;
 
 			$projectMetrics->fileCount++;
 
-			$coverageData = isset($this->data[$file]) ? $this->data[$file] : NULL;
+			if (empty($this->data[$file])) {
+				$coverageData = null;
+				$this->totalSum += count(file($file, FILE_SKIP_EMPTY_LINES));
+			} else {
+				$coverageData = $this->data[$file];
+			}
 
 			// TODO: split to <package> by namespace?
 			$elFile = $elProject->appendChild($doc->createElement('file'));
@@ -87,7 +93,7 @@ class CloverXMLGenerator extends AbstractGenerator
 
 			$code = $parser->parse(file_get_contents($file));
 
-			$fileMetrics = (object) array(
+			$fileMetrics = (object) [
 				'linesOfCode' => $code->linesOfCode,
 				'linesOfNonCommentedCode' => $code->linesOfCode - $code->linesOfComments,
 				'classCount' => count($code->classes) + count($code->traits),
@@ -99,11 +105,11 @@ class CloverXMLGenerator extends AbstractGenerator
 				'coveredElementCount' => 0,
 				'conditionalCount' => 0,
 				'coveredConditionalCount' => 0,
-			);
+			];
 
 			foreach (array_merge($code->classes, $code->traits) as $name => $info) { // TODO: interfaces?
 				$elClass = $elFile->appendChild($doc->createElement('class'));
-				if (($tmp = strrpos($name, '\\')) === FALSE) {
+				if (($tmp = strrpos($name, '\\')) === false) {
 					$elClass->setAttribute('name', $name);
 				} else {
 					$elClass->setAttribute('namespace', substr($name, 0, $tmp));
@@ -125,9 +131,12 @@ class CloverXMLGenerator extends AbstractGenerator
 
 				// Line type can be 'method' but Xdebug does not report such lines as executed.
 				$elLine = $elFile->appendChild($doc->createElement('line'));
-				$elLine->setAttribute('num', $line);
+				$elLine->setAttribute('num', (string) $line);
 				$elLine->setAttribute('type', 'stmt');
-				$elLine->setAttribute('count', max(0, $count));
+				$elLine->setAttribute('count', (string) max(0, $count));
+
+				$this->totalSum++;
+				$this->coveredSum += $count > 0 ? 1 : 0;
 			}
 
 			self::appendMetrics($projectMetrics, $fileMetrics);
@@ -140,28 +149,25 @@ class CloverXMLGenerator extends AbstractGenerator
 	}
 
 
-	/**
-	 * @return \stdClass
-	 */
-	private function calculateClassMetrics(\stdClass $info, array $coverageData = NULL)
+	private function calculateClassMetrics(\stdClass $info, array $coverageData = null): \stdClass
 	{
-		$stats = (object) array(
+		$stats = (object) [
 			'methodCount' => count($info->methods),
 			'coveredMethodCount' => 0,
 			'statementCount' => 0,
 			'coveredStatementCount' => 0,
 			'conditionalCount' => 0,
 			'coveredConditionalCount' => 0,
-			'elementCount' => NULL,
-			'coveredElementCount' => NULL,
-		);
+			'elementCount' => null,
+			'coveredElementCount' => null,
+		];
 
 		foreach ($info->methods as $name => $methodInfo) {
-			list($lineCount, $coveredLineCount) = $this->analyzeMethod($methodInfo, $coverageData);
+			[$lineCount, $coveredLineCount] = $this->analyzeMethod($methodInfo, $coverageData);
 
 			$stats->statementCount += $lineCount;
 
-			if ($coverageData !== NULL) {
+			if ($coverageData !== null) {
 				$stats->coveredMethodCount += $lineCount === $coveredLineCount ? 1 : 0;
 				$stats->coveredStatementCount += $coveredLineCount;
 			}
@@ -174,15 +180,12 @@ class CloverXMLGenerator extends AbstractGenerator
 	}
 
 
-	/**
-	 * @return array
-	 */
-	private static function analyzeMethod(\stdClass $info, array $coverageData = NULL)
+	private static function analyzeMethod(\stdClass $info, array $coverageData = null): array
 	{
 		$count = 0;
 		$coveredCount = 0;
 
-		if ($coverageData === NULL) { // Never loaded file
+		if ($coverageData === null) { // Never loaded file
 			$count = max(1, $info->end - $info->start - 2);
 		} else {
 			for ($i = $info->start; $i <= $info->end; $i++) {
@@ -195,11 +198,11 @@ class CloverXMLGenerator extends AbstractGenerator
 			}
 		}
 
-		return array($count, $coveredCount);
+		return [$count, $coveredCount];
 	}
 
 
-	private static function appendMetrics(\stdClass $summary, \stdClass $add)
+	private static function appendMetrics(\stdClass $summary, \stdClass $add): void
 	{
 		foreach ($add as $name => $value) {
 			$summary->{$name} += $value;
@@ -207,11 +210,10 @@ class CloverXMLGenerator extends AbstractGenerator
 	}
 
 
-	private static function setMetricAttributes(DOMElement $element, \stdClass $metrics)
+	private static function setMetricAttributes(DOMElement $element, \stdClass $metrics): void
 	{
 		foreach ($metrics as $name => $value) {
-			$element->setAttribute(self::$metricAttributesMap[$name], $value);
+			$element->setAttribute(self::$metricAttributesMap[$name], (string) $value);
 		}
 	}
-
 }

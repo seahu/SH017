@@ -27,6 +27,8 @@ root	ALL=(ALL:ALL) ALL
 www-data  ALL=NOPASSWD: /opt/seahu/getNetSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/getWifiSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/getOpenvpnSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/setWifiSeting.sh
+www-data  ALL=NOPASSWD: /opt/seahu/setNetSeting.sh
 www-data  ALL=NOPASSWD: /opt/seahu/scanWifi.sh
 www-data  ALL=NOPASSWD: /opt/seahu/restartWifi.sh
 www-data  ALL=NOPASSWD: /opt/seahu/checkPasswd.sh
@@ -51,8 +53,6 @@ www-data  ALL=NOPASSWD: /sbin/ifup
 www-data  ALL=NOPASSWD: /sbin/ifdown
 www-data  ALL=NOPASSWD: /bin/grep
 
-# See sudoers(5) for more information on "#include" directives:
+# See sudoers(5) for more information on "@include" directives:
 
-#includedir /etc/sudoers.d
-
-pi ALL=(ALL) NOPASSWD: ALL
+@includedir /etc/sudoers.d

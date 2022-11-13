@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -13,40 +15,57 @@ use Nette;
 /**
  * Sends emails via the PHP internal mail() function.
  */
-class SendmailMailer extends Nette\Object implements IMailer
+class SendmailMailer implements Mailer
 {
-	/** @var string */
+	use Nette\SmartObject;
+
+	/** @var string|null */
 	public $commandArgs;
+
+	/** @var Signer|null */
+	private $signer;
+
+
+	/** @return static */
+	public function setSigner(Signer $signer): self
+	{
+		$this->signer = $signer;
+		return $this;
+	}
 
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws SendException
 	 */
-	public function send(Message $mail)
+	public function send(Message $mail): void
 	{
-		$tmp = clone $mail;
-		$tmp->setHeader('Subject', NULL);
-		$tmp->setHeader('To', NULL);
-
-		$parts = explode(Message::EOL . Message::EOL, $tmp->generateMessage(), 2);
-
-		$args = array(
-			str_replace(Message::EOL, PHP_EOL, $mail->getEncodedHeader('To')),
-			str_replace(Message::EOL, PHP_EOL, $mail->getEncodedHeader('Subject')),
-			str_replace(Message::EOL, PHP_EOL, $parts[1]),
-			str_replace(Message::EOL, PHP_EOL, $parts[0]),
-		);
-		if ($this->commandArgs) {
-			$args[] = (string) $this->commandArgs;
+		if (!function_exists('mail')) {
+			throw new SendException('Unable to send email: mail() has been disabled.');
 		}
-		$res = Nette\Utils\Callback::invokeSafe('mail', $args, function ($message) use (& $info) {
+		$tmp = clone $mail;
+		$tmp->setHeader('Subject', null);
+		$tmp->setHeader('To', null);
+
+		$data = $this->signer
+			? $this->signer->generateSignedMessage($tmp)
+			: $tmp->generateMessage();
+		$parts = explode(Message::EOL . Message::EOL, $data, 2);
+
+		$args = [
+			str_replace(Message::EOL, PHP_EOL, (string) $mail->getEncodedHeader('To')),
+			str_replace(Message::EOL, PHP_EOL, (string) $mail->getEncodedHeader('Subject')),
+			str_replace(Message::EOL, PHP_EOL, $parts[1]),
+			str_replace(Message::EOL, PHP_VERSION_ID >= 80000 ? "\r\n" : PHP_EOL, $parts[0]),
+		];
+		if ($this->commandArgs) {
+			$args[] = $this->commandArgs;
+		}
+		$res = Nette\Utils\Callback::invokeSafe('mail', $args, function (string $message) use (&$info): void {
 			$info = ": $message";
 		});
-		if ($res === FALSE) {
+		if ($res === false) {
 			throw new SendException("Unable to send email$info.");
 		}
 	}
-
 }

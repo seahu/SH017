@@ -10,7 +10,7 @@
 	RewriteEngine On
 	# ----- to tu upravil Ing. Ondrej Lycka ----
 	# nasledujici radek je potreba odkomentovat a upravit na aktualni cestu
-	RewriteBase /ser2net
+	RewriteBase /rflink
 	# ---- konec upravy -----
 
 	# prevents files starting with dot to be viewed by browser

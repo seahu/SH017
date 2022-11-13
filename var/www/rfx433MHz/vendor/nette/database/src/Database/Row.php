@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -15,19 +17,25 @@ use Nette;
  */
 class Row extends Nette\Utils\ArrayHash implements IRow
 {
-
 	public function __get($key)
 	{
-		$hint = Nette\Utils\ObjectMixin::getSuggestion(array_keys((array) $this), $key);
+		$hint = Nette\Utils\Helpers::getSuggestion(array_map('strval', array_keys((array) $this)), $key);
 		throw new Nette\MemberAccessException("Cannot read an undeclared column '$key'" . ($hint ? ", did you mean '$hint'?" : '.'));
+	}
+
+
+	public function __isset($key)
+	{
+		return isset($this->key);
 	}
 
 
 	/**
 	 * Returns a item.
-	 * @param  mixed  key or index
+	 * @param  string|int  $key  key or index
 	 * @return mixed
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($key)
 	{
 		if (is_int($key)) {
@@ -43,15 +51,13 @@ class Row extends Nette\Utils\ArrayHash implements IRow
 
 	/**
 	 * Checks if $key exists.
-	 * @param  mixed  key or index
-	 * @return bool
+	 * @param  string|int  $key  key or index
 	 */
-	public function offsetExists($key)
+	public function offsetExists($key): bool
 	{
 		if (is_int($key)) {
 			return (bool) current(array_slice((array) $this, $key, 1));
 		}
 		return parent::offsetExists($key);
 	}
-
 }

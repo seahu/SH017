@@ -5,70 +5,139 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Extensions;
 
 use Nette;
+use Tracy;
 
 
 /**
  * DI extension.
  */
-class DIExtension extends Nette\DI\CompilerExtension
+final class DIExtension extends Nette\DI\CompilerExtension
 {
-	public $defaults = array(
-		'debugger' => FALSE,
-		'accessors' => FALSE,
-	);
+	/** @var array */
+	public $exportedTags = [];
+
+	/** @var array */
+	public $exportedTypes = [];
 
 	/** @var bool */
 	private $debugMode;
 
-	/** @var int */
+	/** @var float */
 	private $time;
 
 
-	public function __construct($debugMode = FALSE)
+	public function __construct(bool $debugMode = false)
 	{
 		$this->debugMode = $debugMode;
-		$this->time = microtime(TRUE);
+		$this->time = microtime(true);
+
+		$this->config = new class {
+			/** @var ?bool */
+			public $debugger;
+
+			/** @var string[] */
+			public $excluded = [];
+
+			/** @var ?string */
+			public $parentClass;
+
+			/** @var object */
+			public $export;
+		};
+		$this->config->export = new class {
+			/** @var bool */
+			public $parameters = true;
+
+			/** @var string[]|bool|null */
+			public $tags = true;
+
+			/** @var string[]|bool|null */
+			public $types = true;
+		};
 	}
 
 
 	public function loadConfiguration()
 	{
-		$config = $this->validateConfig($this->defaults);
-		if ($config['accessors']) {
-			$this->getContainerBuilder()->parameters['container']['accessors'] = TRUE;
+		$builder = $this->getContainerBuilder();
+		$builder->addExcludedClasses($this->config->excluded);
+	}
+
+
+	public function beforeCompile()
+	{
+		if (!$this->config->export->parameters) {
+			$this->getContainerBuilder()->parameters = [];
 		}
 	}
 
 
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
-		$initialize = $class->getMethod('initialize');
-		$container = $this->getContainerBuilder();
-
-		if ($this->debugMode && $this->config['debugger']) {
-			Nette\Bridges\DITracy\ContainerPanel::$compilationTime = $this->time;
-			$initialize->addBody($container->formatPhp('?;', array(
-				new Nette\DI\Statement('@Tracy\Bar::addPanel', array(new Nette\DI\Statement('Nette\Bridges\DITracy\ContainerPanel'))),
-			)));
+		if ($this->config->parentClass) {
+			$class->setExtends($this->config->parentClass);
 		}
 
-		foreach (array_filter($container->findByTag('run')) as $name => $on) {
-			$initialize->addBody('$this->getService(?);', array($name));
+		$this->restrictTags($class);
+		$this->restrictTypes($class);
+
+		if (
+			$this->debugMode &&
+			($this->config->debugger ?? $this->getContainerBuilder()->getByType(Tracy\Bar::class))
+		) {
+			$this->enableTracyIntegration();
 		}
 
-		if (!empty($this->config['accessors'])) {
-			$definitions = $container->getDefinitions();
-			ksort($definitions);
-			foreach ($definitions as $name => $def) {
-				if (Nette\PhpGenerator\Helpers::isIdentifier($name)) {
-					$type = $def->getImplement() ?: $def->getClass();
-					$class->addComment("@property $type \$$name");
-				}
-			}
+		$this->initializeTaggedServices();
+	}
+
+
+	private function restrictTags(Nette\PhpGenerator\ClassType $class): void
+	{
+		$option = $this->config->export->tags;
+		if ($option === true) {
+		} elseif ($option === false) {
+			$class->removeProperty('tags');
+		} elseif ($prop = $class->getProperties()['tags'] ?? null) {
+			$prop->setValue(array_intersect_key($prop->getValue(), $this->exportedTags + array_flip((array) $option)));
 		}
 	}
 
+
+	private function restrictTypes(Nette\PhpGenerator\ClassType $class): void
+	{
+		$option = $this->config->export->types;
+		if ($option === true) {
+			return;
+		}
+
+		$prop = $class->getProperty('wiring');
+		$prop->setValue(array_intersect_key(
+			$prop->getValue(),
+			$this->exportedTypes + (is_array($option) ? array_flip($option) : [])
+		));
+	}
+
+
+	private function initializeTaggedServices(): void
+	{
+		foreach (array_filter($this->getContainerBuilder()->findByTag('run')) as $name => $on) {
+			trigger_error("Tag 'run' used in service '$name' definition is deprecated.", E_USER_DEPRECATED);
+			$this->initialization->addBody('$this->getService(?);', [$name]);
+		}
+	}
+
+
+	private function enableTracyIntegration(): void
+	{
+		Nette\Bridges\DITracy\ContainerPanel::$compilationTime = $this->time;
+		$this->initialization->addBody($this->getContainerBuilder()->formatPhp('?;', [
+			new Nette\DI\Definitions\Statement('@Tracy\Bar::addPanel', [new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]),
+		]));
+	}
 }

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -13,31 +15,26 @@ use Nette;
 /**
  * JSON response used mainly for AJAX requests.
  */
-class JsonResponse extends Nette\Object implements Nette\Application\IResponse
+final class JsonResponse implements Nette\Application\Response
 {
-	/** @var array|\stdClass */
+	use Nette\SmartObject;
+
+	/** @var mixed */
 	private $payload;
 
 	/** @var string */
 	private $contentType;
 
 
-	/**
-	 * @param  array|\stdClass  payload
-	 * @param  string    MIME content type
-	 */
-	public function __construct($payload, $contentType = NULL)
+	public function __construct($payload, ?string $contentType = null)
 	{
-		if (!is_array($payload) && !is_object($payload)) {
-			throw new Nette\InvalidArgumentException(sprintf('Payload must be array or object class, %s given.', gettype($payload)));
-		}
 		$this->payload = $payload;
-		$this->contentType = $contentType ? $contentType : 'application/json';
+		$this->contentType = $contentType ?: 'application/json';
 	}
 
 
 	/**
-	 * @return array|\stdClass
+	 * @return mixed
 	 */
 	public function getPayload()
 	{
@@ -47,9 +44,8 @@ class JsonResponse extends Nette\Object implements Nette\Application\IResponse
 
 	/**
 	 * Returns the MIME content type of a downloaded file.
-	 * @return string
 	 */
-	public function getContentType()
+	public function getContentType(): string
 	{
 		return $this->contentType;
 	}
@@ -57,13 +53,10 @@ class JsonResponse extends Nette\Object implements Nette\Application\IResponse
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	{
 		$httpResponse->setContentType($this->contentType, 'utf-8');
-		$httpResponse->setExpiration(FALSE);
 		echo Nette\Utils\Json::encode($this->payload);
 	}
-
 }

@@ -38,11 +38,11 @@ LCD_SI = cfg.LCD_SI 	#19 (21)
 
 #prepare framebufer (for storage dispaly date)
 framebuffer=[]
-for row in xrange(5):
+for row in range(5):
     cols=[]
-    for col in xrange(20): cols.append(' ')
+    for col in range(20): cols.append(' ')
     framebuffer.append(cols)
-print framebuffer
+print(framebuffer)
 
 def main():
    io_init()
@@ -84,28 +84,28 @@ def lcd_init():
    lcd_clear()
 
 def image(filename="/opt/seahu/lcd_images/logo.tif"):
-    print "filename", filename
-    im=Image.open(filename)
-    col, row = im.size
-    GPIO.output(LCD_CS, False)
-    for row in range(0, 8):
-	lcd_set_page(row,0)
-	for col in range(0, 128):
-	    data=0
-	    for i in range(0,8):
-		data=data>>1
-		if im.getpixel((col,row*8+i))==255: bit=0
-		else: bit=128 #(128 = set 8. bit)
-		data=data|bit
-	    lcd_tranfer_data(data,1)
-    GPIO.output(LCD_CS, True)
+	print ("filename", filename)
+	im=Image.open(filename)
+	col, row = im.size
+	GPIO.output(LCD_CS, False)
+	for row in range(0, 8):
+		lcd_set_page(row,0)
+		for col in range(0, 128):
+			data=0
+			for i in range(0,8):
+				data=data>>1
+				if im.getpixel((col,row*8+i))==255: bit=0
+				else: bit=128 #(128 = set 8. bit)
+				data=data|bit
+			lcd_tranfer_data(data,1)
+	GPIO.output(LCD_CS, True)
 
 def lcd_ascii168_string(xPos, yPos, string, inversion=False):
-   if (inversion==True): inversion_val=0xFF
-   else : inversion_val=0x00
-   stringLen = len(string)
-   for i in range(0, stringLen):
-      lcd_ascii168(xPos+i*8,yPos,ord(string[i])-32, inversion_val)
+	if (inversion==True): inversion_val=0xFF
+	else : inversion_val=0x00
+	stringLen = len(string)
+	for i in range(0, stringLen):
+		lcd_ascii168(xPos+i*8,yPos,ord(string[i])-32, inversion_val)
 
 def lcd_ascii168(xPos, yPos, char, inversion_val):
    lcd_set_page(yPos,xPos)
@@ -116,80 +116,82 @@ def lcd_ascii168(xPos, yPos, char, inversion_val):
       lcd_tranfer_data(ASCII168[char][i]^inversion_val,1)
 
 def lcd_clear():
-    GPIO.output(LCD_CS, False)
-    for i in range(0, 8):           
-	lcd_set_page(i,0)
-	for j in range(0, 128):                                          
-	    lcd_tranfer_data(0x00,1)
-    GPIO.output(LCD_CS, True)
-    #clear framebuffer
-    for y in range(len(framebuffer)): 
-	for x in range(len(framebuffer[y])):
-	    framebuffer[y][x]=' '
+	GPIO.output(LCD_CS, False)
+	for i in range(0, 8): 
+		lcd_set_page(i,0)
+		for j in range(0, 128):
+			lcd_tranfer_data(0x00,1)
+	GPIO.output(LCD_CS, True)
+	#clear framebuffer
+	for y in range(len(framebuffer)): 
+		for x in range(len(framebuffer[y])):
+			framebuffer[y][x]=' '
 
 
 def lcd_message(text,x=0,y=0,inversion=False):
-    # Iterate through each character.
-    for char in text:
-	# Advance to next line if character is a new line.
-	if char == '\n':
-	    y += 1
-	    x = 0
-	# Write the character to the display.
-	else:
-	    #print "x:%d" %x
-	    #print "y:%d" %y
-	    framebuffer[y][x]=char # store into framebuffer (framebuffer ignore inversion text)
-	    lcd_ascii168_string(x*8,y*2,char,inversion)
-	    x += 1
+	# Iterate through each character.
+	for char in text:
+		# Advance to next line if character is a new line.
+		if char == '\n':
+			y += 1
+			x = 0
+		# Write the character to the display.
+		else:
+			#print "x:%d" %x
+			#print "y:%d" %y
+			framebuffer[y][x]=char # store into framebuffer (framebuffer ignore inversion text)
+			lcd_ascii168_string(x*8,y*2,char,inversion)
+			x += 1
 
 def start_server(port=10000):
-    sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = ('localhost', port)
-    sock.bind(server_address)
-    sock.listen(1)
-    while True:
-	print 'waiting for a connection'
-	connection, client_address = sock.accept()
-	try:
-	    data = connection.recv(100)
-	    print 'received "%s"' % data
-	    if data:
-	        if len(data)==0 :
-		    print "end service"
-		    break
-	        if data[0]=="c" : # clear lcd
-		    print "lcd_clear"
-		    lcd_clear()
-		elif data[0]=='m': #show image
-		    if len(data)<3: image() #show default logo
-		    else:
-			filename=data[2:]
-			filename="/opt/seahu/lcd_images/"+filename
-			image(filename)
-	        elif data[0]=='g' : # get (return) content of framebuffer
-		    print "send framebuffer"
-		    data=""
-		    for row in framebuffer: 
-			for col in row:
-			    data+=col
-			data+="\n"
-		    connection.sendall(data)
-		elif (data[0]=='p' or data[0]=='i') : #print text
-		    if data[0]=='i' : inversion=True # set inversion for new text
-		    else : inversion=False
-		    if len(data)>8 :
-    			x=int(data[2:4]) # set x position of new text
-			y=int(data[5:7]) # set y position of new text
-			text=data[8:] # separe new tex from message
-			print "%s, %d, %d, %d" %(text,x,y,inversion)
-			lcd_message(text,x,y,inversion)
-	    else:
-		print 'no more data -> end service'
-		break
-	finally:
-	    connection.close()
-	print "end connection"
+	sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	server_address = ('localhost', port)
+	sock.bind(server_address)
+	sock.listen(1)
+	while True:
+		print('waiting for a connection')
+		connection, client_address = sock.accept()
+		try:
+			data = connection.recv(100).decode('ascii')
+			print('received "%s"' % data)
+			print(data[0])
+			if data:
+				if len(data)==0 :
+					print("end service")
+					break
+				if data[0]=="c" : # clear lcd
+					print("lcd_clear")
+					lcd_clear()
+				elif data[0]=='m': #show image
+					if len(data)<3: image() #show default logo
+					else:
+						filename=data[2:]
+						filename="/opt/seahu/lcd_images/"+filename
+						image(filename)
+				elif data[0]=='g' : # get (return) content of framebuffer
+					print("send framebuffer:")
+					data=""
+					for row in framebuffer: 
+						for col in row:
+			 				data+=col
+						data+="\n"
+					print(data)
+					connection.sendall(data.encode('ascii'))
+				elif (data[0]=='p' or data[0]=='i') : #print text
+					if data[0]=='i' : inversion=True # set inversion for new text
+					else : inversion=False
+					if len(data)>8 :
+						x=int(data[2:4]) # set x position of new text
+						y=int(data[5:7]) # set y position of new text
+						text=data[8:] # separe new tex from message
+						print("%s, %d, %d, %d" %(text,x,y,inversion))
+						lcd_message(text,x,y,inversion)
+			else:
+				print('no more data -> end service')
+				break
+		finally:
+			connection.close()
+		print("end connection")
 
 def lcd_set_page(page, column):
    lsb = column & 0x0f

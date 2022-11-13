@@ -1,7 +1,0 @@
-{block content}
-<h1 n:block=title>Change password</h1>
-
-{control changeForm}
-
-
-{* or use {include '../components/form.latte', form => signInForm} *}

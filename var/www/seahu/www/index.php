@@ -1,8 +1,10 @@
 <?php
 
-// Uncomment this line if you must temporarily take down your site for maintenance.
-// require __DIR__ . '/.maintenance.php';
+declare(strict_types=1);
 
-$container = require __DIR__ . '/../app/bootstrap.php';
+require __DIR__ . '/../vendor/autoload.php';
 
-$container->getByType('Nette\Application\Application')->run();
+$configurator = App\Bootstrap::boot();
+$container = $configurator->createContainer();
+$application = $container->getByType(Nette\Application\Application::class);
+$application->run();

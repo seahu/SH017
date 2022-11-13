@@ -5,309 +5,340 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
 /**
  * Templating engine Latte.
  */
-class Engine extends Object
+class Engine
 {
-	const VERSION = '2.3.12';
+	use Strict;
+
+	public const VERSION = '2.10.8';
+	public const VERSION_ID = 21008;
 
 	/** Content types */
-	const CONTENT_HTML = 'html',
+	public const
+		CONTENT_HTML = 'html',
 		CONTENT_XHTML = 'xhtml',
 		CONTENT_XML = 'xml',
 		CONTENT_JS = 'js',
 		CONTENT_CSS = 'css',
-		CONTENT_URL = 'url',
 		CONTENT_ICAL = 'ical',
 		CONTENT_TEXT = 'text';
 
 	/** @var callable[] */
-	public $onCompile = array();
+	public $onCompile = [];
 
-	/** @var Parser */
+	/** @internal */
+	public $probe;
+
+	/** @var Parser|null */
 	private $parser;
 
-	/** @var Compiler */
+	/** @var Compiler|null */
 	private $compiler;
 
-	/** @var ILoader */
+	/** @var Loader|null */
 	private $loader;
+
+	/** @var Runtime\FilterExecutor */
+	private $filters;
+
+	/** @var \stdClass */
+	private $functions;
+
+	/** @var mixed[] */
+	private $providers = [];
 
 	/** @var string */
 	private $contentType = self::CONTENT_HTML;
 
-	/** @var string */
+	/** @var string|null */
 	private $tempDirectory;
 
 	/** @var bool */
-	private $autoRefresh = TRUE;
+	private $autoRefresh = true;
 
-	/** @var array run-time filters */
-	private $filters = array(
-		NULL => array(), // dynamic
-		'bytes' => 'Latte\Runtime\Filters::bytes',
-		'capitalize' => 'Latte\Runtime\Filters::capitalize',
-		'datastream' => 'Latte\Runtime\Filters::dataStream',
-		'date' => 'Latte\Runtime\Filters::date',
-		'escapecss' => 'Latte\Runtime\Filters::escapeCss',
-		'escapehtml' => 'Latte\Runtime\Filters::escapeHtml',
-		'escapehtmlcomment' => 'Latte\Runtime\Filters::escapeHtmlComment',
-		'escapeical' => 'Latte\Runtime\Filters::escapeICal',
-		'escapejs' => 'Latte\Runtime\Filters::escapeJs',
-		'escapeurl' => 'rawurlencode',
-		'escapexml' => 'Latte\Runtime\Filters::escapeXML',
-		'firstupper' => 'Latte\Runtime\Filters::firstUpper',
-		'implode' => 'implode',
-		'indent' => 'Latte\Runtime\Filters::indent',
-		'lower' => 'Latte\Runtime\Filters::lower',
-		'nl2br' => 'Latte\Runtime\Filters::nl2br',
-		'number' => 'number_format',
-		'repeat' => 'str_repeat',
-		'replace' => 'Latte\Runtime\Filters::replace',
-		'replacere' => 'Latte\Runtime\Filters::replaceRe',
-		'safeurl' => 'Latte\Runtime\Filters::safeUrl',
-		'strip' => 'Latte\Runtime\Filters::strip',
-		'striptags' => 'strip_tags',
-		'substr' => 'Latte\Runtime\Filters::substring',
-		'trim' => 'Latte\Runtime\Filters::trim',
-		'truncate' => 'Latte\Runtime\Filters::truncate',
-		'upper' => 'Latte\Runtime\Filters::upper',
-	);
+	/** @var bool */
+	private $strictTypes = false;
+
+	/** @var Policy|null */
+	private $policy;
+
+	/** @var bool */
+	private $sandboxed = false;
+
+
+	public function __construct()
+	{
+		$this->filters = new Runtime\FilterExecutor;
+		$this->functions = new \stdClass;
+		$this->probe = function () {};
+
+		$defaults = new Runtime\Defaults;
+		foreach ($defaults->getFilters() as $name => $callback) {
+			$this->filters->add($name, $callback);
+		}
+
+		foreach ($defaults->getFunctions() as $name => $callback) {
+			$this->functions->$name = $callback;
+		}
+	}
 
 
 	/**
 	 * Renders template to output.
-	 * @return void
+	 * @param  object|mixed[]  $params
 	 */
-	public function render($name, array $params = array())
+	public function render(string $name, $params = [], ?string $block = null): void
 	{
-		$class = $this->getTemplateClass($name);
-		if (!class_exists($class, FALSE)) {
-			$this->loadTemplate($name);
-		}
-
-		$template = new $class($params, $this, $name);
-		$template->render();
+		$template = $this->createTemplate($name, $this->processParams($params));
+		$template->global->coreCaptured = false;
+		($this->probe)($template);
+		$template->render($block);
 	}
 
 
 	/**
 	 * Renders template to string.
-	 * @return string
+	 * @param  object|mixed[]  $params
 	 */
-	public function renderToString($name, array $params = array())
+	public function renderToString(string $name, $params = [], ?string $block = null): string
 	{
-		ob_start(function () {});
-		try {
-			$this->render($name, $params);
-		} catch (\Throwable $e) {
-			ob_end_clean();
-			throw $e;
-		} catch (\Exception $e) {
-			ob_end_clean();
-			throw $e;
+		$template = $this->createTemplate($name, $this->processParams($params));
+		$template->global->coreCaptured = true;
+		($this->probe)($template);
+		return $template->capture(function () use ($template, $block) { $template->render($block); });
+	}
+
+
+	/**
+	 * Creates template object.
+	 * @param  mixed[]  $params
+	 */
+	public function createTemplate(string $name, array $params = []): Runtime\Template
+	{
+		$class = $this->getTemplateClass($name);
+		if (!class_exists($class, false)) {
+			$this->loadTemplate($name);
 		}
-		return ob_get_clean();
+
+		$this->providers['fn'] = $this->functions;
+		return new $class($this, $params, $this->filters, $this->providers, $name, $this->sandboxed ? $this->policy : null);
 	}
 
 
 	/**
 	 * Compiles template to PHP code.
-	 * @return string
 	 */
-	public function compile($name)
+	public function compile(string $name): string
 	{
-		foreach ($this->onCompile ?: array() as $cb) {
-			call_user_func(Helpers::checkCallback($cb), $this);
+		foreach ($this->onCompile ?: [] as $cb) {
+			(Helpers::checkCallback($cb))($this);
 		}
-		$this->onCompile = array();
+
+		$this->onCompile = [];
 
 		$source = $this->getLoader()->getContent($name);
+		$comment = preg_match('#\n|\?#', $name) ? null : "source: $name";
 
 		try {
-			$tokens = $this->getParser()->setContentType($this->contentType)
+			$tokens = $this->getParser()
+				->setContentType($this->contentType)
 				->parse($source);
 
-			$code = $this->getCompiler()->setContentType($this->contentType)
-				->compile($tokens, $this->getTemplateClass($name));
+			$code = $this->getCompiler()
+				->setContentType($this->contentType)
+				->setFunctions(array_keys((array) $this->functions))
+				->setPolicy($this->sandboxed ? $this->policy : null)
+				->compile($tokens, $this->getTemplateClass($name), $comment, $this->strictTypes);
 
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			if (!$e instanceof CompileException) {
-				$e = new CompileException("Thrown exception '{$e->getMessage()}'", NULL, $e);
+				$e = new CompileException($e instanceof SecurityViolationException ? $e->getMessage() : "Thrown exception '{$e->getMessage()}'", 0, $e);
 			}
-			$line = isset($tokens) ? $this->getCompiler()->getLine() : $this->getParser()->getLine();
+
+			$line = isset($tokens)
+				? $this->getCompiler()->getLine()
+				: $this->getParser()->getLine();
 			throw $e->setSource($source, $line, $name);
 		}
 
-		if (!preg_match('#\n|\?#', $name)) {
-			$code = "<?php\n// source: $name\n?>" . $code;
-		}
-		$code = Helpers::optimizePhp($code);
 		return $code;
 	}
 
 
 	/**
 	 * Compiles template to cache.
-	 * @param  string
-	 * @return void
 	 * @throws \LogicException
 	 */
-	public function warmupCache($name)
+	public function warmupCache(string $name): void
 	{
 		if (!$this->tempDirectory) {
 			throw new \LogicException('Path to temporary directory is not set.');
 		}
 
 		$class = $this->getTemplateClass($name);
-		if (!class_exists($class, FALSE)) {
+		if (!class_exists($class, false)) {
 			$this->loadTemplate($name);
 		}
 	}
 
 
-	/**
-	 * @return void
-	 */
-	private function loadTemplate($name)
+	private function loadTemplate(string $name): void
 	{
 		if (!$this->tempDirectory) {
 			$code = $this->compile($name);
-			if (@eval('?>' . $code) === FALSE) { // @ is escalated to exception
-				$error = error_get_last();
-				$e = new CompileException('Error in template: ' . $error['message']);
-				throw $e->setSource($code, $error['line'], "$name (compiled)");
+			if (@eval(substr($code, 5)) === false) { // @ is escalated to exception, substr removes <?php
+				throw (new CompileException('Error in template: ' . error_get_last()['message']))
+					->setSource($code, error_get_last()['line'], "$name (compiled)");
 			}
+
 			return;
 		}
 
+		// Solving atomicity to work everywhere is really pain in the ass.
+		// 1) We want to do as little as possible IO calls on production and also directory and file can be not writable
+		// so on Linux we include the file directly without shared lock, therefore, the file must be created atomically by renaming.
+		// 2) On Windows file cannot be renamed-to while is open (ie by include), so we have to acquire a lock.
 		$file = $this->getCacheFile($name);
+		$lock = defined('PHP_WINDOWS_VERSION_BUILD')
+			? $this->acquireLock("$file.lock", LOCK_SH)
+			: null;
 
-		if (!$this->isExpired($file, $name) && (@include $file) !== FALSE) { // @ - file may not exist
+		if (!$this->isExpired($file, $name) && (@include $file) !== false) { // @ - file may not exist
 			return;
 		}
 
-		if (!is_dir($this->tempDirectory)) {
-			@mkdir($this->tempDirectory); // @ - directory may already exist
+		if ($lock) {
+			flock($lock, LOCK_UN); // release shared lock so we can get exclusive
 		}
 
-		$handle = fopen("$file.lock", 'c+');
-		if (!$handle || !flock($handle, LOCK_EX)) {
-			throw new \RuntimeException("Unable to acquire exclusive lock '$file.lock'.");
-		}
+		$lock = $this->acquireLock("$file.lock", LOCK_EX);
 
+		// while waiting for exclusive lock, someone might have already created the cache
 		if (!is_file($file) || $this->isExpired($file, $name)) {
 			$code = $this->compile($name);
 			if (file_put_contents("$file.tmp", $code) !== strlen($code) || !rename("$file.tmp", $file)) {
 				@unlink("$file.tmp"); // @ - file may not exist
-				throw new \RuntimeException("Unable to create '$file'.");
+				throw new RuntimeException("Unable to create '$file'.");
+			}
+
+			if (function_exists('opcache_invalidate')) {
+				@opcache_invalidate($file, true); // @ can be restricted
 			}
 		}
 
-		if ((include $file) === FALSE) {
-			throw new \RuntimeException("Unable to load '$file'.");
+		if ((include $file) === false) {
+			throw new RuntimeException("Unable to load '$file'.");
 		}
-
-		flock($handle, LOCK_UN);
 	}
 
 
 	/**
-	 * @param  string
-	 * @param  string
-	 * @return bool
+	 * @return resource
 	 */
-	private function isExpired($file, $name)
+	private function acquireLock(string $file, int $mode)
+	{
+		$dir = dirname($file);
+		if (!is_dir($dir) && !@mkdir($dir) && !is_dir($dir)) { // @ - dir may already exist
+			throw new RuntimeException("Unable to create directory '$dir'. " . error_get_last()['message']);
+		}
+
+		$handle = @fopen($file, 'w'); // @ is escalated to exception
+		if (!$handle) {
+			throw new RuntimeException("Unable to create file '$file'. " . error_get_last()['message']);
+		} elseif (!@flock($handle, $mode)) { // @ is escalated to exception
+			throw new RuntimeException('Unable to acquire ' . ($mode & LOCK_EX ? 'exclusive' : 'shared') . " lock on file '$file'. " . error_get_last()['message']);
+		}
+
+		return $handle;
+	}
+
+
+	private function isExpired(string $file, string $name): bool
 	{
 		return $this->autoRefresh && $this->getLoader()->isExpired($name, (int) @filemtime($file)); // @ - file may not exist
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getCacheFile($name)
+	public function getCacheFile(string $name): string
 	{
-		$file = $this->getTemplateClass($name);
-		if (preg_match('#\b\w.{10,50}$#', $name, $m)) {
-			$file = trim(preg_replace('#\W+#', '-', $m[0]), '-') . '-' . $file;
-		}
-		return $this->tempDirectory . '/' . $file . '.php';
+		$hash = substr($this->getTemplateClass($name), 8);
+		$base = preg_match('#([/\\\\][\w@.-]{3,35}){1,3}$#D', $name, $m)
+			? preg_replace('#[^\w@.-]+#', '-', substr($m[0], 1)) . '--'
+			: '';
+		return "$this->tempDirectory/$base$hash.php";
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getTemplateClass($name)
+	public function getTemplateClass(string $name): string
 	{
-		return 'Template' . md5("$this->tempDirectory\00$name");
+		$key = serialize([$this->getLoader()->getUniqueId($name), self::VERSION, array_keys((array) $this->functions), $this->sandboxed]);
+		return 'Template' . substr(md5($key), 0, 10);
 	}
 
 
 	/**
 	 * Registers run-time filter.
-	 * @param  string|NULL
-	 * @param  callable
-	 * @return self
+	 * @return static
 	 */
-	public function addFilter($name, $callback)
+	public function addFilter(?string $name, callable $callback)
 	{
-		if ($name == NULL) { // intentionally ==
-			array_unshift($this->filters[NULL], $callback);
-		} else {
-			$this->filters[strtolower($name)] = $callback;
+		if ($name !== null && !preg_match('#^[a-z]\w*$#iD', $name)) {
+			throw new \LogicException("Invalid filter name '$name'.");
 		}
+
+		$this->filters->add($name, $callback);
+		return $this;
+	}
+
+
+	/**
+	 * Registers filter loader.
+	 * @return static
+	 */
+	public function addFilterLoader(callable $callback)
+	{
+		$this->filters->add(null, function ($name) use ($callback) {
+			if ($filter = $callback($name)) {
+				$this->filters->add($name, $filter);
+			}
+		});
 		return $this;
 	}
 
 
 	/**
 	 * Returns all run-time filters.
-	 * @return callable[]
+	 * @return string[]
 	 */
-	public function getFilters()
+	public function getFilters(): array
 	{
-		return $this->filters;
+		return $this->filters->getAll();
 	}
 
 
 	/**
 	 * Call a run-time filter.
-	 * @param  string  filter name
-	 * @param  array   arguments
+	 * @param  mixed[]  $args
 	 * @return mixed
 	 */
-	public function invokeFilter($name, array $args)
+	public function invokeFilter(string $name, array $args)
 	{
-		$lname = strtolower($name);
-		if (!isset($this->filters[$lname])) {
-			$args2 = $args;
-			array_unshift($args2, $lname);
-			foreach ($this->filters[NULL] as $filter) {
-				$res = call_user_func_array(Helpers::checkCallback($filter), $args2);
-				if ($res !== NULL) {
-					return $res;
-				} elseif (isset($this->filters[$lname])) {
-					return call_user_func_array(Helpers::checkCallback($this->filters[$lname]), $args);
-				}
-			}
-			$hint = ($t = Helpers::getSuggestion(array_keys($this->filters), $name)) ? ", did you mean '$t'?" : '.';
-			throw new \LogicException("Filter '$name' is not defined$hint");
-		}
-		return call_user_func_array(Helpers::checkCallback($this->filters[$lname]), $args);
+		return ($this->filters->$name)(...$args);
 	}
 
 
 	/**
 	 * Adds new macro.
-	 * @return self
+	 * @return static
 	 */
-	public function addMacro($name, IMacro $macro)
+	public function addMacro(string $name, Macro $macro)
 	{
 		$this->getCompiler()->addMacro($name, $macro);
 		return $this;
@@ -315,9 +346,90 @@ class Engine extends Object
 
 
 	/**
-	 * @return self
+	 * Registers run-time function.
+	 * @return static
 	 */
-	public function setContentType($type)
+	public function addFunction(string $name, callable $callback)
+	{
+		if (!preg_match('#^[a-z]\w*$#iD', $name)) {
+			throw new \LogicException("Invalid function name '$name'.");
+		}
+
+		$this->functions->$name = $callback;
+		return $this;
+	}
+
+
+	/**
+	 * Call a run-time function.
+	 * @param  mixed[]  $args
+	 * @return mixed
+	 */
+	public function invokeFunction(string $name, array $args)
+	{
+		if (!isset($this->functions->$name)) {
+			$hint = ($t = Helpers::getSuggestion(array_keys((array) $this->functions), $name))
+				? ", did you mean '$t'?"
+				: '.';
+			throw new \LogicException("Function '$name' is not defined$hint");
+		}
+
+		return ($this->functions->$name)(...$args);
+	}
+
+
+	/**
+	 * Adds new provider.
+	 * @param  mixed  $value
+	 * @return static
+	 */
+	public function addProvider(string $name, $value)
+	{
+		if (!preg_match('#^[a-z]\w*$#iD', $name)) {
+			throw new \LogicException("Invalid provider name '$name'.");
+		}
+
+		$this->providers[$name] = $value;
+		return $this;
+	}
+
+
+	/**
+	 * Returns all providers.
+	 * @return mixed[]
+	 */
+	public function getProviders(): array
+	{
+		return $this->providers;
+	}
+
+
+	/** @return static */
+	public function setPolicy(?Policy $policy)
+	{
+		$this->policy = $policy;
+		return $this;
+	}
+
+
+	/** @return static */
+	public function setExceptionHandler(callable $callback)
+	{
+		$this->providers['coreExceptionHandler'] = $callback;
+		return $this;
+	}
+
+
+	/** @return static */
+	public function setSandboxMode(bool $on = true)
+	{
+		$this->sandboxed = $on;
+		return $this;
+	}
+
+
+	/** @return static */
+	public function setContentType(string $type)
 	{
 		$this->contentType = $type;
 		return $this;
@@ -326,9 +438,9 @@ class Engine extends Object
 
 	/**
 	 * Sets path to temporary directory.
-	 * @return self
+	 * @return static
 	 */
-	public function setTempDirectory($path)
+	public function setTempDirectory(?string $path)
 	{
 		$this->tempDirectory = $path;
 		return $this;
@@ -337,60 +449,93 @@ class Engine extends Object
 
 	/**
 	 * Sets auto-refresh mode.
-	 * @return self
+	 * @return static
 	 */
-	public function setAutoRefresh($on = TRUE)
+	public function setAutoRefresh(bool $on = true)
 	{
-		$this->autoRefresh = (bool) $on;
+		$this->autoRefresh = $on;
 		return $this;
 	}
 
 
 	/**
-	 * @return Parser
+	 * Enables declare(strict_types=1) in templates.
+	 * @return static
 	 */
-	public function getParser()
+	public function setStrictTypes(bool $on = true)
+	{
+		$this->strictTypes = $on;
+		return $this;
+	}
+
+
+	public function getParser(): Parser
 	{
 		if (!$this->parser) {
 			$this->parser = new Parser;
 		}
+
 		return $this->parser;
 	}
 
 
-	/**
-	 * @return Compiler
-	 */
-	public function getCompiler()
+	public function getCompiler(): Compiler
 	{
 		if (!$this->compiler) {
 			$this->compiler = new Compiler;
 			Macros\CoreMacros::install($this->compiler);
 			Macros\BlockMacros::install($this->compiler);
 		}
+
 		return $this->compiler;
 	}
 
 
-	/**
-	 * @return self
-	 */
-	public function setLoader(ILoader $loader)
+	/** @return static */
+	public function setLoader(Loader $loader)
 	{
 		$this->loader = $loader;
 		return $this;
 	}
 
 
-	/**
-	 * @return ILoader
-	 */
-	public function getLoader()
+	public function getLoader(): Loader
 	{
 		if (!$this->loader) {
 			$this->loader = new Loaders\FileLoader;
 		}
+
 		return $this->loader;
 	}
 
+
+	/**
+	 * @param  object|mixed[]  $params
+	 * @return mixed[]
+	 */
+	private function processParams($params): array
+	{
+		if (is_array($params)) {
+			return $params;
+		} elseif (!is_object($params)) {
+			throw new \InvalidArgumentException(sprintf('Engine::render() expects array|object, %s given.', gettype($params)));
+		}
+
+		$methods = (new \ReflectionClass($params))->getMethods(\ReflectionMethod::IS_PUBLIC);
+		foreach ($methods as $method) {
+			if ((PHP_VERSION_ID >= 80000 && $method->getAttributes(Attributes\TemplateFilter::class))
+				|| (strpos((string) $method->getDocComment(), '@filter'))
+			) {
+				$this->addFilter($method->name, [$params, $method->name]);
+			}
+
+			if ((PHP_VERSION_ID >= 80000 && $method->getAttributes(Attributes\TemplateFunction::class))
+				|| (strpos((string) $method->getDocComment(), '@function'))
+			) {
+				$this->addFunction($method->name, [$params, $method->name]);
+			}
+		}
+
+		return array_filter((array) $params, function ($key) { return $key[0] !== "\0"; }, ARRAY_FILTER_USE_KEY);
+	}
 }

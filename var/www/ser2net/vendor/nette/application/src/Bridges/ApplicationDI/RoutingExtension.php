@@ -5,81 +5,111 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\ApplicationDI;
 
 use Nette;
+use Nette\DI\Definitions;
+use Nette\Schema\Expect;
+use Tracy;
 
 
 /**
  * Routing extension for Nette DI.
  */
-class RoutingExtension extends Nette\DI\CompilerExtension
+final class RoutingExtension extends Nette\DI\CompilerExtension
 {
-	public $defaults = array(
-		'debugger' => NULL,
-		'routes' => array(), // of [mask => action]
-		'cache' => FALSE,
-	);
-
 	/** @var bool */
 	private $debugMode;
 
 
-	public function __construct($debugMode = FALSE)
+	public function __construct(bool $debugMode = false)
 	{
-		$this->defaults['debugger'] = interface_exists('Tracy\IBarPanel');
 		$this->debugMode = $debugMode;
+	}
+
+
+	public function getConfigSchema(): Nette\Schema\Schema
+	{
+		return Expect::structure([
+			'debugger' => Expect::bool(),
+			'routes' => Expect::arrayOf('string'),
+			'routeClass' => Expect::string()->deprecated(),
+			'cache' => Expect::bool(false),
+		]);
 	}
 
 
 	public function loadConfiguration()
 	{
-		$config = $this->validateConfig($this->defaults);
-		$container = $this->getContainerBuilder();
+		if (!$this->config->routes) {
+			return;
+		}
 
-		$router = $container->addDefinition($this->prefix('router'))
-			->setClass('Nette\Application\IRouter')
-			->setFactory('Nette\Application\Routers\RouteList');
+		$builder = $this->getContainerBuilder();
 
-		foreach ($config['routes'] as $mask => $action) {
-			$router->addSetup('$service[] = new Nette\Application\Routers\Route(?, ?);', array($mask, $action));
+		$router = $builder->addDefinition($this->prefix('router'))
+			->setFactory(Nette\Application\Routers\RouteList::class);
+
+		if ($this->config->routeClass) {
+			foreach ($this->config->routes as $mask => $action) {
+				$router->addSetup('$service[] = new ' . $this->config->routeClass . '(?, ?)', [$mask, $action]);
+			}
+		} else {
+			foreach ($this->config->routes as $mask => $action) {
+				$router->addSetup('$service->addRoute(?, ?)', [$mask, $action]);
+			}
 		}
 
 		if ($this->name === 'routing') {
-			$container->addAlias('router', $this->prefix('router'));
+			$builder->addAlias('router', $this->prefix('router'));
 		}
 	}
 
 
 	public function beforeCompile()
 	{
-		$container = $this->getContainerBuilder();
+		$builder = $this->getContainerBuilder();
 
-		if ($this->debugMode && $this->config['debugger'] && $application = $container->getByType('Nette\Application\Application')) {
-			$container->getDefinition($application)->addSetup('@Tracy\Bar::addPanel', array(
-				new Nette\DI\Statement('Nette\Bridges\ApplicationTracy\RoutingPanel'),
-			));
+		if (
+			$this->debugMode &&
+			($this->config->debugger ?? $builder->getByType(Tracy\Bar::class)) &&
+			($name = $builder->getByType(Nette\Application\Application::class)) &&
+			($application = $builder->getDefinition($name)) instanceof Definitions\ServiceDefinition
+		) {
+			$application->addSetup('@Tracy\Bar::addPanel', [
+				new Definitions\Statement(Nette\Bridges\ApplicationTracy\RoutingPanel::class),
+			]);
+		}
+
+		if (!$builder->getByType(Nette\Routing\Router::class)) {
+			$builder->addDefinition($this->prefix('router'))
+				->setType(Nette\Routing\Router::class)
+				->setFactory(Nette\Routing\SimpleRouter::class);
+			$builder->addAlias('router', $this->prefix('router'));
 		}
 	}
 
 
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
-		if (!empty($this->config['cache'])) {
-			$method = $class->getMethod(Nette\DI\Container::getMethodName($this->prefix('router')));
+		if ($this->config->cache) {
+			$builder = $this->getContainerBuilder();
+			$def = $builder->getDefinitionByType(Nette\Routing\Router::class);
+			$method = $class->getMethod(Nette\DI\Container::getMethodName($def->getName()));
 			try {
 				$router = eval($method->getBody());
 				if ($router instanceof Nette\Application\Routers\RouteList) {
 					$router->warmupCache();
 				}
+
 				$s = serialize($router);
 			} catch (\Throwable $e) {
 				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
-			} catch (\Exception $e) {
-				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
 			}
-			$method->setBody('return unserialize(?);', array($s));
+
+			$method->setBody('return unserialize(?);', [$s]);
 		}
 	}
-
 }

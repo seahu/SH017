@@ -5,10 +5,11 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Iterators;
 
 use Nette;
-use Nette\Utils\ObjectMixin;
 
 
 /**
@@ -25,6 +26,8 @@ use Nette\Utils\ObjectMixin;
  */
 class CachingIterator extends \CachingIterator implements \Countable
 {
+	use Nette\SmartObject;
+
 	/** @var int */
 	private $counter = 0;
 
@@ -39,12 +42,13 @@ class CachingIterator extends \CachingIterator implements \Countable
 				$iterator = $iterator->getIterator();
 			} while ($iterator instanceof \IteratorAggregate);
 
+			assert($iterator instanceof \Iterator);
+
+		} elseif ($iterator instanceof \Iterator) {
 		} elseif ($iterator instanceof \Traversable) {
-			if (!$iterator instanceof \Iterator) {
-				$iterator = new \IteratorIterator($iterator);
-			}
+			$iterator = new \IteratorIterator($iterator);
 		} else {
-			throw new Nette\InvalidArgumentException(sprintf('Invalid argument passed to %s; array or Traversable expected, %s given.', __CLASS__, is_object($iterator) ? get_class($iterator) : gettype($iterator)));
+			throw new Nette\InvalidArgumentException(sprintf('Invalid argument passed to %s; array or Traversable expected, %s given.', self::class, is_object($iterator) ? get_class($iterator) : gettype($iterator)));
 		}
 
 		parent::__construct($iterator, 0);
@@ -53,31 +57,26 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Is the current element the first one?
-	 * @param  int  grid width
-	 * @return bool
 	 */
-	public function isFirst($width = NULL)
+	public function isFirst(?int $gridWidth = null): bool
 	{
-		return $this->counter === 1 || ($width && $this->counter !== 0 && (($this->counter - 1) % $width) === 0);
+		return $this->counter === 1 || ($gridWidth && $this->counter !== 0 && (($this->counter - 1) % $gridWidth) === 0);
 	}
 
 
 	/**
 	 * Is the current element the last one?
-	 * @param  int  grid width
-	 * @return bool
 	 */
-	public function isLast($width = NULL)
+	public function isLast(?int $gridWidth = null): bool
 	{
-		return !$this->hasNext() || ($width && ($this->counter % $width) === 0);
+		return !$this->hasNext() || ($gridWidth && ($this->counter % $gridWidth) === 0);
 	}
 
 
 	/**
 	 * Is the iterator empty?
-	 * @return bool
 	 */
-	public function isEmpty()
+	public function isEmpty(): bool
 	{
 		return $this->counter === 0;
 	}
@@ -85,9 +84,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Is the counter odd?
-	 * @return bool
 	 */
-	public function isOdd()
+	public function isOdd(): bool
 	{
 		return $this->counter % 2 === 1;
 	}
@@ -95,9 +93,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Is the counter even?
-	 * @return bool
 	 */
-	public function isEven()
+	public function isEven(): bool
 	{
 		return $this->counter % 2 === 0;
 	}
@@ -105,9 +102,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Returns the counter.
-	 * @return int
 	 */
-	public function getCounter()
+	public function getCounter(): int
 	{
 		return $this->counter;
 	}
@@ -115,9 +111,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Returns the count of elements.
-	 * @return int
 	 */
-	public function count()
+	public function count(): int
 	{
 		$inner = $this->getInnerIterator();
 		if ($inner instanceof \Countable) {
@@ -131,9 +126,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Forwards to the next element.
-	 * @return void
 	 */
-	public function next()
+	public function next(): void
 	{
 		parent::next();
 		if (parent::valid()) {
@@ -144,9 +138,8 @@ class CachingIterator extends \CachingIterator implements \Countable
 
 	/**
 	 * Rewinds the Iterator.
-	 * @return void
 	 */
-	public function rewind()
+	public function rewind(): void
 	{
 		parent::rewind();
 		$this->counter = parent::valid() ? 1 : 0;
@@ -171,70 +164,4 @@ class CachingIterator extends \CachingIterator implements \Countable
 	{
 		return $this->getInnerIterator()->current();
 	}
-
-
-	/********************* Nette\Object behaviour ****************d*g**/
-
-
-	/**
-	 * Call to undefined method.
-	 * @param  string  method name
-	 * @param  array   arguments
-	 * @return mixed
-	 * @throws Nette\MemberAccessException
-	 */
-	public function __call($name, $args)
-	{
-		return ObjectMixin::call($this, $name, $args);
-	}
-
-
-	/**
-	 * Returns property value. Do not call directly.
-	 * @param  string  property name
-	 * @return mixed   property value
-	 * @throws Nette\MemberAccessException if the property is not defined.
-	 */
-	public function &__get($name)
-	{
-		return ObjectMixin::get($this, $name);
-	}
-
-
-	/**
-	 * Sets value of a property. Do not call directly.
-	 * @param  string  property name
-	 * @param  mixed   property value
-	 * @return void
-	 * @throws Nette\MemberAccessException if the property is not defined or is read-only
-	 */
-	public function __set($name, $value)
-	{
-		ObjectMixin::set($this, $name, $value);
-	}
-
-
-	/**
-	 * Is property defined?
-	 * @param  string  property name
-	 * @return bool
-	 */
-	public function __isset($name)
-	{
-		return ObjectMixin::has($this, $name);
-	}
-
-
-	/**
-	 * Access to undeclared property.
-	 * @param  string  property name
-	 * @return void
-	 * @throws Nette\MemberAccessException
-	 */
-	public function __unset($name)
-	{
-		ObjectMixin::remove($this, $name);
-	}
-
-
 }

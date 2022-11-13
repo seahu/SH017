@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Config;
 
 use Nette;
@@ -14,111 +16,124 @@ use Nette\Utils\Validators;
 /**
  * Configuration file loader.
  */
-class Loader extends Nette\Object
+class Loader
 {
-	/** @internal */
-	const INCLUDES_KEY = 'includes';
+	use Nette\SmartObject;
 
-	private $adapters = array(
-		'php' => 'Nette\DI\Config\Adapters\PhpAdapter',
-		'ini' => 'Nette\DI\Config\Adapters\IniAdapter',
-		'neon' => 'Nette\DI\Config\Adapters\NeonAdapter',
-	);
+	private const INCLUDES_KEY = 'includes';
 
-	private $dependencies = array();
+	private $adapters = [
+		'php' => Adapters\PhpAdapter::class,
+		'neon' => Adapters\NeonAdapter::class,
+	];
+
+	private $dependencies = [];
+
+	private $loadedFiles = [];
+
+	private $parameters = [];
 
 
 	/**
 	 * Reads configuration from file.
-	 * @param  string  file name
-	 * @param  string  optional section to load
-	 * @return array
 	 */
-	public function load($file, $section = NULL)
+	public function load(string $file, ?bool $merge = true): array
 	{
 		if (!is_file($file) || !is_readable($file)) {
-			throw new Nette\FileNotFoundException("File '$file' is missing or is not readable.");
+			throw new Nette\FileNotFoundException(sprintf("File '%s' is missing or is not readable.", $file));
 		}
-		$this->dependencies[] = realpath($file);
+
+		if (isset($this->loadedFiles[$file])) {
+			throw new Nette\InvalidStateException(sprintf("Recursive included file '%s'", $file));
+		}
+
+		$this->loadedFiles[$file] = true;
+
+		$this->dependencies[] = $file;
 		$data = $this->getAdapter($file)->load($file);
 
-		if ($section) {
-			if (isset($data[self::INCLUDES_KEY])) {
-				throw new Nette\InvalidStateException("Section 'includes' must be placed under some top section in file '$file'.");
-			}
-			$data = $this->getSection($data, $section, $file);
-		}
-
-		// include child files
-		$merged = array();
+		$res = [];
 		if (isset($data[self::INCLUDES_KEY])) {
 			Validators::assert($data[self::INCLUDES_KEY], 'list', "section 'includes' in file '$file'");
-			foreach ($data[self::INCLUDES_KEY] as $include) {
-				$merged = Helpers::merge($this->load(dirname($file) . '/' . $include), $merged);
+			$includes = Nette\DI\Helpers::expand($data[self::INCLUDES_KEY], $this->parameters);
+			foreach ($includes as $include) {
+				$include = $this->expandIncludedFile($include, $file);
+				$res = Nette\Schema\Helpers::merge($this->load($include, $merge), $res);
 			}
 		}
-		unset($data[self::INCLUDES_KEY]);
 
-		return Helpers::merge($data, $merged);
+		unset($data[self::INCLUDES_KEY], $this->loadedFiles[$file]);
+
+		if ($merge === false) {
+			$res[] = $data;
+		} else {
+			$res = Nette\Schema\Helpers::merge($data, $res);
+		}
+
+		return $res;
 	}
 
 
 	/**
 	 * Save configuration to file.
-	 * @param  array
-	 * @param  string  file
-	 * @return void
 	 */
-	public function save($data, $file)
+	public function save(array $data, string $file): void
 	{
-		if (file_put_contents($file, $this->getAdapter($file)->dump($data)) === FALSE) {
-			throw new Nette\IOException("Cannot write file '$file'.");
+		if (file_put_contents($file, $this->getAdapter($file)->dump($data)) === false) {
+			throw new Nette\IOException(sprintf("Cannot write file '%s'.", $file));
 		}
 	}
 
 
 	/**
 	 * Returns configuration files.
-	 * @return array
 	 */
-	public function getDependencies()
+	public function getDependencies(): array
 	{
 		return array_unique($this->dependencies);
 	}
 
 
 	/**
-	 * Registers adapter for given file extension.
-	 * @param  string  file extension
-	 * @param  string|IAdapter
-	 * @return self
+	 * Expands included file name.
 	 */
-	public function addAdapter($extension, $adapter)
+	public function expandIncludedFile(string $includedFile, string $mainFile): string
+	{
+		return preg_match('#([a-z]+:)?[/\\\\]#Ai', $includedFile) // is absolute
+			? $includedFile
+			: dirname($mainFile) . '/' . $includedFile;
+	}
+
+
+	/**
+	 * Registers adapter for given file extension.
+	 * @param  string|Adapter  $adapter
+	 * @return static
+	 */
+	public function addAdapter(string $extension, $adapter)
 	{
 		$this->adapters[strtolower($extension)] = $adapter;
 		return $this;
 	}
 
 
-	/** @return IAdapter */
-	private function getAdapter($file)
+	private function getAdapter(string $file): Adapter
 	{
 		$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 		if (!isset($this->adapters[$extension])) {
-			throw new Nette\InvalidArgumentException("Unknown file extension '$file'.");
+			throw new Nette\InvalidArgumentException(sprintf("Unknown file extension '%s'.", $file));
 		}
-		return is_object($this->adapters[$extension]) ? $this->adapters[$extension] : new $this->adapters[$extension];
+
+		return is_object($this->adapters[$extension])
+			? $this->adapters[$extension]
+			: new $this->adapters[$extension];
 	}
 
 
-	private function getSection(array $data, $key, $file)
+	/** @return static */
+	public function setParameters(array $params)
 	{
-		Validators::assertField($data, $key, 'array|null', "section '%' in file '$file'");
-		$item = $data[$key];
-		if ($parent = Helpers::takeParent($item)) {
-			$item = Helpers::merge($item, $this->getSection($data, $parent, $file));
-		}
-		return $item;
+		$this->parameters = $params;
+		return $this;
 	}
-
 }

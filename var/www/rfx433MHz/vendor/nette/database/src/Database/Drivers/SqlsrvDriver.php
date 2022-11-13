@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database\Drivers;
 
 use Nette;
@@ -13,8 +15,10 @@ use Nette;
 /**
  * Supplemental SQL Server 2005 and later database driver.
  */
-class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalDriver
+class SqlsrvDriver implements Nette\Database\Driver
 {
+	use Nette\SmartObject;
+
 	/** @var Nette\Database\Connection */
 	private $connection;
 
@@ -22,14 +26,14 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	private $version;
 
 
-	public function __construct(Nette\Database\Connection $connection, array $options)
+	public function initialize(Nette\Database\Connection $connection, array $options): void
 	{
 		$this->connection = $connection;
 		$this->version = $connection->getPdo()->getAttribute(\PDO::ATTR_SERVER_VERSION);
 	}
 
 
-	public function convertException(\PDOException $e)
+	public function convertException(\PDOException $e): Nette\Database\DriverException
 	{
 		return Nette\Database\DriverException::from($e);
 	}
@@ -38,75 +42,51 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	/********************* SQL ****************d*g**/
 
 
-	/**
-	 * Delimites identifier for use in a SQL statement.
-	 */
-	public function delimite($name)
+	public function delimite(string $name): string
 	{
 		/** @see https://msdn.microsoft.com/en-us/library/ms176027.aspx */
 		return '[' . str_replace(']', ']]', $name) . ']';
 	}
 
 
-	/**
-	 * Formats boolean for use in a SQL statement.
-	 */
-	public function formatBool($value)
-	{
-		return $value ? '1' : '0';
-	}
-
-
-	/**
-	 * Formats date-time for use in a SQL statement.
-	 */
-	public function formatDateTime(/*\DateTimeInterface*/ $value)
+	public function formatDateTime(\DateTimeInterface $value): string
 	{
 		/** @see https://msdn.microsoft.com/en-us/library/ms187819.aspx */
-		return $value->format("'Y-m-d H:i:s'");
+		return $value->format("'Y-m-d\\TH:i:s'");
 	}
 
 
-	/**
-	 * Formats date-time interval for use in a SQL statement.
-	 */
-	public function formatDateInterval(\DateInterval $value)
+	public function formatDateInterval(\DateInterval $value): string
 	{
 		throw new Nette\NotSupportedException;
 	}
 
 
-	/**
-	 * Encodes string for use in a LIKE statement.
-	 */
-	public function formatLike($value, $pos)
+	public function formatLike(string $value, int $pos): string
 	{
 		/** @see https://msdn.microsoft.com/en-us/library/ms179859.aspx */
-		$value = strtr($value, array("'" => "''", '%' => '[%]', '_' => '[_]', '[' => '[[]'));
+		$value = strtr($value, ["'" => "''", '%' => '[%]', '_' => '[_]', '[' => '[[]']);
 		return ($pos <= 0 ? "'%" : "'") . $value . ($pos >= 0 ? "%'" : "'");
 	}
 
 
-	/**
-	 * Injects LIMIT/OFFSET to the SQL query.
-	 */
-	public function applyLimit(& $sql, $limit, $offset)
+	public function applyLimit(string &$sql, ?int $limit, ?int $offset): void
 	{
 		if ($limit < 0 || $offset < 0) {
 			throw new Nette\InvalidArgumentException('Negative offset or limit.');
 
-		} elseif (version_compare($this->version, 11, '<')) { // 11 == SQL Server 2012
+		} elseif (version_compare($this->version, '11', '<')) { // 11 == SQL Server 2012
 			if ($offset) {
 				throw new Nette\NotSupportedException('Offset is not supported by this database.');
 
-			} elseif ($limit !== NULL) {
-				$sql = preg_replace('#^\s*(SELECT(\s+DISTINCT|\s+ALL)?|UPDATE|DELETE)#i', '$0 TOP ' . (int) $limit, $sql, 1, $count);
+			} elseif ($limit !== null) {
+				$sql = preg_replace('#^\s*(SELECT(\s+DISTINCT|\s+ALL)?|UPDATE|DELETE)#i', '$0 TOP ' . $limit, $sql, 1, $count);
 				if (!$count) {
 					throw new Nette\InvalidArgumentException('SQL query must begin with SELECT, UPDATE or DELETE command.');
 				}
 			}
 
-		} elseif ($limit !== NULL || $offset) {
+		} elseif ($limit !== null || $offset) {
 			// requires ORDER BY, see https://technet.microsoft.com/en-us/library/gg699618(v=sql.110).aspx
 			$sql .= ' OFFSET ' . (int) $offset . ' ROWS '
 				. 'FETCH NEXT ' . (int) $limit . ' ROWS ONLY';
@@ -114,24 +94,12 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	}
 
 
-	/**
-	 * Normalizes result row.
-	 */
-	public function normalizeRow($row)
-	{
-		return $row;
-	}
-
-
 	/********************* reflection ****************d*g**/
 
 
-	/**
-	 * Returns list of tables.
-	 */
-	public function getTables()
+	public function getTables(): array
 	{
-		$tables = array();
+		$tables = [];
 		foreach ($this->connection->query("
 			SELECT
 				name,
@@ -144,29 +112,25 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 			WHERE
 				type IN ('U', 'V')
 		") as $row) {
-			$tables[] = array(
+			$tables[] = [
 				'name' => $row->name,
 				'view' => (bool) $row->view,
-			);
+			];
 		}
 
 		return $tables;
 	}
 
 
-	/**
-	 * Returns metadata for all columns in a table.
-	 */
-	public function getColumns($table)
+	public function getColumns(string $table): array
 	{
-		$columns = array();
+		$columns = [];
 		foreach ($this->connection->query("
 			SELECT
 				c.name AS name,
 				o.name AS [table],
 				UPPER(t.name) AS nativetype,
 				NULL AS size,
-				0 AS unsigned,
 				c.is_nullable AS nullable,
 				OBJECT_DEFINITION(c.default_object_id) AS [default],
 				c.is_identity AS autoincrement,
@@ -186,7 +150,6 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 		") as $row) {
 			$row = (array) $row;
 			$row['vendor'] = $row;
-			$row['unsigned'] = (bool) $row['unsigned'];
 			$row['nullable'] = (bool) $row['nullable'];
 			$row['autoincrement'] = (bool) $row['autoincrement'];
 			$row['primary'] = (bool) $row['primary'];
@@ -198,12 +161,9 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	}
 
 
-	/**
-	 * Returns metadata for all indexes in a table.
-	 */
-	public function getIndexes($table)
+	public function getIndexes(string $table): array
 	{
-		$indexes = array();
+		$indexes = [];
 		foreach ($this->connection->query("
 			SELECT
 				i.name AS name,
@@ -234,13 +194,10 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	}
 
 
-	/**
-	 * Returns metadata for all foreign keys in a table.
-	 */
-	public function getForeignKeys($table)
+	public function getForeignKeys(string $table): array
 	{
 		// Does't work with multicolumn foreign keys
-		$keys = array();
+		$keys = [];
 		foreach ($this->connection->query("
 			SELECT
 				fk.name AS name,
@@ -264,16 +221,16 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	}
 
 
-	/**
-	 * Returns associative array of detected types (IReflection::FIELD_*) in result set.
-	 */
-	public function getColumnTypes(\PDOStatement $statement)
+	public function getColumnTypes(\PDOStatement $statement): array
 	{
-		$types = array();
+		$types = [];
 		$count = $statement->columnCount();
 		for ($col = 0; $col < $count; $col++) {
 			$meta = $statement->getColumnMeta($col);
-			if (isset($meta['sqlsrv:decl_type']) && $meta['sqlsrv:decl_type'] !== 'timestamp') { // timestamp does not mean time in sqlsrv
+			if (
+				isset($meta['sqlsrv:decl_type'])
+				&& $meta['sqlsrv:decl_type'] !== 'timestamp'
+			) { // timestamp does not mean time in sqlsrv
 				$types[$meta['name']] = Nette\Database\Helpers::detectType($meta['sqlsrv:decl_type']);
 			} elseif (isset($meta['native_type'])) {
 				$types[$meta['name']] = Nette\Database\Helpers::detectType($meta['native_type']);
@@ -283,13 +240,8 @@ class SqlsrvDriver extends Nette\Object implements Nette\Database\ISupplementalD
 	}
 
 
-	/**
-	 * @param  string
-	 * @return bool
-	 */
-	public function isSupported($item)
+	public function isSupported(string $item): bool
 	{
 		return $item === self::SUPPORT_SUBSELECT;
 	}
-
 }

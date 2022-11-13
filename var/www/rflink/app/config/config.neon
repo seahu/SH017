@@ -20,11 +20,12 @@ session:
 
 
 services:
-	- App\Model\UserManager
+	#- App\Model\UserManager
+	- App\Model\MyAuthenticator
 	- App\Forms\FormFactory
 	- App\Forms\SignFormFactory
 	- App\Forms\ChangeFormFactory
-	router: App\RouterFactory::createRouter
+	- App\RouterFactory::createRouter
 
 security:
     users:

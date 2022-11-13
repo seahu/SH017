@@ -1,0 +1,62 @@
+{block content}
+
+	<div class="newblock">
+		STATUS: <br>
+		<div class="status">
+			{if $status}
+				RFlink service is running.
+			{else}
+				RFlink service is topped.
+			{/if}
+		</div>
+	</div>
+
+	<br>
+	<div>
+		<div class="block">
+			Log:<br>
+			<div class="log">
+			    {if count($log) !== 0}
+				{foreach $log as $line}
+					{$line} <br>
+				{/foreach}
+			    {else}
+				Log file is empty or not exist.
+			    {/if}
+			</div>
+			<br>
+			<a n:href="Homepage:" class="mybutton">Refresh</a>
+		</div>
+
+		<div class="insert">
+			<br>
+		</div>
+
+		<div class="block">
+			View config file:<br>
+				<div class="config">
+				{if count($config) !== 0 }
+				    {foreach $config as $line}
+					{$line} <br>
+				    {/foreach}
+				{else}
+				    Config file ({$config_file}) is empty or not exist.
+				{/if}
+				</div>
+		</div>
+	</div>
+<div class="newblock">
+<br>
+<b>RFlink</b><br>
+is most flexible RF Gatway for control and collect data from wireless sensors on 433MHz. 
+This solution discrem wide range of sesors, socket, remote controls, door bells, meteorological stations, etc. of many manufectures. Is suitable for create Home automation. RFLink have support for many home automation system etc.: Domoticz (tested), Jeedom, Pimatic, Domotiga, OpenHAB, HoMIDoM. <br>
+Oreginal version of RFlink run on arduino and connect to PC via serial port emulated on USB. This is modification version run direct on raspberryPi mini PC, for comunication use TCP connection instead of serial connection. <br>
+Becouse oreginal RFlink is not fully opensource, this version contain only public aviable modules, but so it is for many purpouses it is satisfactory.
+<br>
+PS: For scanning must be client connect to this service.
+Only one connection to this service is allowed. Therefore connetc to this service may be your automation system, or for testing you can connect by telnet.
+<br>
+<br>
+More on <a href="http://www.nemcon.nl/blog2/" class="help"> http://www.nemcon.nl/blog2/ </a> or <a href="http://www.seahu.cz"  class="help">http://www.seahu.cz</a> . <br>
+If you can use this service in domoticz automation system please read this manual.
+</div>

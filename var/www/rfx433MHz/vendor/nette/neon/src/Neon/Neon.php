@@ -5,40 +5,58 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Neon;
 
 
 /**
  * Simple parser & generator for Nette Object Notation.
+ * @see https://ne-on.org
  */
-class Neon
+final class Neon
 {
-	const BLOCK = Encoder::BLOCK;
-	const CHAIN = '!!chain';
+	public const BLOCK = Encoder::BLOCK;
+
+	public const CHAIN = '!!chain';
 
 
 	/**
-	 * Returns the NEON representation of a value.
-	 * @param  mixed
-	 * @param  int
-	 * @return string
+	 * Returns value converted to NEON.
 	 */
-	public static function encode($var, $options = NULL)
+	public static function encode($value, bool $blockMode = false, string $indentation = "\t"): string
 	{
 		$encoder = new Encoder;
-		return $encoder->encode($var, $options);
+		$encoder->blockMode = $blockMode;
+		$encoder->indentation = $indentation;
+		return $encoder->encode($value);
 	}
 
 
 	/**
-	 * Decodes a NEON string.
-	 * @param  string
+	 * Converts given NEON to PHP value.
 	 * @return mixed
 	 */
-	public static function decode($input)
+	public static function decode(string $input)
 	{
 		$decoder = new Decoder;
 		return $decoder->decode($input);
 	}
 
+
+	/**
+	 * Converts given NEON file to PHP value.
+	 * @return mixed
+	 */
+	public static function decodeFile(string $file)
+	{
+		if (!is_file($file)) {
+			throw new Exception("File '$file' does not exist.");
+		}
+		$input = file_get_contents($file);
+		if (substr($input, 0, 3) === "\u{FEFF}") { // BOM
+			$input = substr($input, 3);
+		}
+		return self::decode($input);
+	}
 }

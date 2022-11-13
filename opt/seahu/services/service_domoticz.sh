@@ -5,31 +5,29 @@ domoticz()
     case "$1" in
         enable)
             #some code
-	    #update-rc.d domoticz.sh default
-            update-rc.d domoticz.sh enable
-            /etc/init.d/domoticz.sh start
-	    ;;
+            systemctl enagble domoticz
+            #systemctl daemon-reload
+            systemctl start domoticz
+            ;;
         disable)
-            #seme code
-            /etc/init.d/domoticz.sh stop
-            update-rc.d domoticz.sh disable
-	    ;;
+            #some code
+            systemctl stop domoticz
+            systemctl disable domoticz
+            ;;
         status)
             #domoticze - if run las twoline contain "Started"
-            /etc/init.d/domoticz.sh status | tail -n 2 | grep "Started"
+            systemctl status domoticz | grep "Active:" | grep "running"
             if [ $? -eq 0 ] ; then
                 echo "OK"
             else
                 echo  "NO"
             fi
-	    ;;
-	*)
-	    echo "Usage: $0 {enable|disable}"
-	    exit 3
-	    ;;
+            ;;
+        *)
+            echo "Usage: $0 {enable|disable}"
+            exit 3
+            ;;
     esac
 }
 
-#/etc/init.d/domoticz.sh status | tail -n 2 | grep "Started"
-#exit 1
 domoticz "$@"

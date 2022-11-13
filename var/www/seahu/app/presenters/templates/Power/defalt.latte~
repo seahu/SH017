@@ -1,5 +1,0 @@
-{block content}
-		{if $user->loggedIn}
-			<a n:href="Power:shutDown" class="mybutton">Shut down</a>
-			<a n:href="Power:reset" class="mybutton">Reset</a>
-		{/if}

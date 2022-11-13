@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -13,42 +15,39 @@ namespace Tester;
  */
 class DomQuery extends \SimpleXMLElement
 {
-
-	/**
-	 * @return DomQuery
-	 */
-	public static function fromHtml($html)
+	public static function fromHtml(string $html): self
 	{
-		if (strpos($html, '<') === FALSE) {
+		if (strpos($html, '<') === false) {
 			$html = '<body>' . $html;
 		}
 
-		$html = preg_replace('#<(keygen|source|track|wbr)(?=\s|>)("[^"]*"|\'[^\']*\'|[^"\'>]+)*+(?<!/)>#', '<$1$2 />', $html);
+		// parse these elements as void
+		$html = preg_replace('#<(keygen|source|track|wbr)(?=\s|>)((?:"[^"]*"|\'[^\']*\'|[^"\'>])*+)(?<!/)>#', '<$1$2 />', $html);
 
-		$dom = new \DOMDocument();
-		$old = libxml_use_internal_errors(TRUE);
+		// fix parsing of </ inside scripts
+		$html = preg_replace_callback('#(<script(?=\s|>)(?:"[^"]*"|\'[^\']*\'|[^"\'>])*+>)(.*?)(</script>)#s', function (array $m): string {
+			return $m[1] . str_replace('</', '<\/', $m[2]) . $m[3];
+		}, $html);
+
+		$dom = new \DOMDocument;
+		$old = libxml_use_internal_errors(true);
 		libxml_clear_errors();
 		$dom->loadHTML($html);
 		$errors = libxml_get_errors();
 		libxml_use_internal_errors($old);
 
-		$re = '#Tag (article|aside|audio|bdi|canvas|data|datalist|figcaption|figure|footer|header|keygen|main|mark'
-			. '|meter|nav|output|progress|rb|rp|rt|rtc|ruby|section|source|template|time|track|video|wbr) invalid#';
 		foreach ($errors as $error) {
-			if (!preg_match($re, $error->message)) {
+			if (!preg_match('#Tag \S+ invalid#', $error->message)) {
 				trigger_error(__METHOD__ . ": $error->message on line $error->line.", E_USER_WARNING);
 			}
 		}
-		return simplexml_import_dom($dom, __CLASS__);
+		return simplexml_import_dom($dom, self::class);
 	}
 
 
-	/**
-	 * @return DomQuery
-	 */
-	public static function fromXml($xml)
+	public static function fromXml(string $xml): self
 	{
-		return simplexml_load_string($xml, __CLASS__);
+		return simplexml_load_string($xml, self::class);
 	}
 
 
@@ -56,7 +55,7 @@ class DomQuery extends \SimpleXMLElement
 	 * Returns array of descendants filtered by a selector.
 	 * @return DomQuery[]
 	 */
-	public function find($selector)
+	public function find(string $selector): array
 	{
 		return $this->xpath(self::css2xpath($selector));
 	}
@@ -64,9 +63,8 @@ class DomQuery extends \SimpleXMLElement
 
 	/**
 	 * Check the current document against a selector.
-	 * @return bool
 	 */
-	public function has($selector)
+	public function has(string $selector): bool
 	{
 		return (bool) $this->find($selector);
 	}
@@ -74,9 +72,8 @@ class DomQuery extends \SimpleXMLElement
 
 	/**
 	 * Transforms CSS expression to XPath.
-	 * @return string
 	 */
-	public static function css2xpath($css)
+	public static function css2xpath(string $css): string
 	{
 		$xpath = '//*';
 		preg_match_all('/
@@ -136,5 +133,4 @@ class DomQuery extends \SimpleXMLElement
 		}
 		return $xpath;
 	}
-
 }

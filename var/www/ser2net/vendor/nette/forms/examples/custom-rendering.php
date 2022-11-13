@@ -4,15 +4,17 @@
  * Nette Forms custom rendering example.
  */
 
+declare(strict_types=1);
+
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
 	die('Install packages using `composer install`');
 }
 
 use Nette\Forms\Form;
+use Nette\Utils\Html;
 use Tracy\Debugger;
 use Tracy\Dumper;
-use Nette\Utils\Html;
 
 Debugger::enable();
 
@@ -21,29 +23,29 @@ $form = new Form;
 // setup custom rendering
 $renderer = $form->getRenderer();
 $renderer->wrappers['form']['container'] = Html::el('div')->id('form');
-$renderer->wrappers['group']['container'] = NULL;
+$renderer->wrappers['group']['container'] = null;
 $renderer->wrappers['group']['label'] = 'h3';
-$renderer->wrappers['pair']['container'] = NULL;
+$renderer->wrappers['pair']['container'] = null;
 $renderer->wrappers['controls']['container'] = 'dl';
 $renderer->wrappers['control']['container'] = 'dd';
 $renderer->wrappers['control']['.odd'] = 'odd';
 $renderer->wrappers['label']['container'] = 'dt';
 $renderer->wrappers['label']['suffix'] = ':';
-$renderer->wrappers['control']['requiredsuffix'] = " \xE2\x80\xA2";
+$renderer->wrappers['control']['requiredsuffix'] = " \u{2022}";
 
 
 $form->addGroup('Personal data');
 $form->addText('name', 'Your name')
 	->setRequired('Enter your name');
 
-$form->addRadioList('gender', 'Your gender', array(
+$form->addRadioList('gender', 'Your gender', [
 	'm' => Html::el('span', 'male')->style('color: #248bd3'),
 	'f' => Html::el('span', 'female')->style('color: #e948d4'),
-));
+]);
 
-$form->addSelect('country', 'Country', array(
+$form->addSelect('country', 'Country', [
 	'Buranda', 'Qumran', 'Saint Georges Island',
-));
+]);
 
 $form->addCheckbox('send', 'Ship to address');
 
@@ -116,10 +118,10 @@ if ($form->isSuccess()) {
 		background: #EEE;
 	}
 </style>
-<script src="https://nette.github.io/resources/js/netteForms.js"></script>
+<script src="https://nette.github.io/resources/js/3/netteForms.js"></script>
 
 <h1>Nette Forms custom rendering example</h1>
 
-<?php echo $form ?>
+<?php $form->render() ?>
 
 <footer><a href="https://doc.nette.org/en/forms">see documentation</a></footer>

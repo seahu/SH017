@@ -12,7 +12,7 @@ cfg=imp.load_source('config', '/etc/seahu/pin_config.py')
 # beep from emulation buzzer on displayboard
 def beep():
     bus = smbus.SMBus(1)
-    addr_i2c = cfg.addr_i2c	#0x3c # address of i2c ioexpander on dispaly board
+    addr_i2c = cfg.addr_i2c        #0x3c # address of i2c ioexpander on dispaly board
     mask=0x80
     Imask=mask^0xFF
     bus.write_byte(addr_i2c, bus.read_byte(addr_i2c)&Imask)
@@ -29,13 +29,13 @@ def beep_direct():
     GPIO.output(pin, 1)
     i=0
     while i<80:
-	GPIO.output(pin, 1)
-	#GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
-	time.sleep(0.001)
-	GPIO.output(pin, 0)
-	#GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
-	time.sleep(0.001)
-	i=i+1
+        GPIO.output(pin, 1)
+        #GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
+        time.sleep(0.001)
+        GPIO.output(pin, 0)
+        #GPIO.setup(pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
+        time.sleep(0.001)
+        i=i+1
     #GPIO.cleanup()
 
 beep()

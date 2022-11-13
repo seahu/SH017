@@ -1,0 +1,83 @@
+{block content}
+<div id="ser2net">
+	<h1> Service bridge Serial port over network </h1>
+	{$service_status ? "Service is runnig " : "Service stoped"}
+	<p>
+		{if $user->loggedIn}
+			
+			
+			{if $service_status}
+			    <span class="mybutton"> Start </span>
+			    <a n:href="Homepage:stopSer2net" class="mybutton"> Stop </a>
+			{else}
+			    <a n:href="Homepage:startSer2net" class="mybutton"> Start </a>
+			    <span class="mybutton"> Stop </span>
+			{/if}
+			<a n:href="Homepage:addSer2netForm" class="mybutton"> Add new entry</a>
+		{/if}
+	</p>
+	<table class="ser2net">
+				<tr>
+					<th>Edit<br>Delete</th>
+					<th>Enable</th> 
+					<th>Device<br>path</th>
+					<th>Protocol</th>
+					<th>Port<br>number</th>
+					<th>Baud<br>rate</th>
+					<th>Time<br> out</th>
+					<th>Parity</th>
+					<th>Stop<br>bits</th>
+					<th>Data<br>bit</th>
+					<th>Flow<br>control</th>
+				</tr>
+		{if count($ser2net_config) !== 0}
+			{foreach $ser2net_config as $id => $conf}
+				{if $conf['enable']=='off'}
+					<tr>
+						<td class="disable">
+							{if $user->loggedIn}
+								<a n:href="Homepage:editSer2netForm $id" class="mybutton"> Edit </a>
+								<a n:href="Homepage:deleteQuery $id" class="mybutton"> Del </a>
+							{/if}
+						</td>
+						<td class="disable">{$conf['enable']}</td>
+						<td class="disable">{$conf['device']}</td>
+						<td class="disable">{$conf['protocol']}</td>
+						<td class="disable">{$conf['port']}</td>
+						<td class="disable">{$conf['rate']}</td>
+						<td class="disable">{$conf['timeout']}</td>
+						<td class="disable">{$conf['parity']}</td>
+						<td class="disable">{$conf['stopBit']}</td>
+						<td class="disable">{$conf['dataBit']}</td>
+						<td class="disable">{$conf['flow']}</td>
+					</tr>
+
+					{var $_class ="disable" } 
+				{else}
+					<tr>
+						<td class="enable">
+							{if $user->loggedIn}
+								<a n:href="Homepage:editSer2netForm $id" class="mybutton"> Edit </a>
+								<a n:href="Homepage:deleteQuery $id" class="mybutton"> Del </a>
+							{/if}
+						</td>
+						<td class="enable">{$conf['enable']}</td>
+						<td class="enable">{$conf['device']}</td>
+						<td class="enable">{$conf['protocol']}</td>
+						<td class="enable">{$conf['port']}</td>
+						<td class="enable">{$conf['rate']}</td>
+						<td class="enable">{$conf['timeout']}</td>
+						<td class="enable">{$conf['parity']}</td>
+						<td class="enable">{$conf['stopBit']}</td>
+						<td class="enable">{$conf['dataBit']}</td>
+						<td class="enable">{$conf['flow']}</td>
+					</tr>
+				{/if}
+			{/foreach}
+		{else}
+			<tr>
+				<td collspan='9'>No entry</td>
+			</tr>
+		{/if}
+		</table>
+</div>

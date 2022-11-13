@@ -5,27 +5,28 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
+use Nette\Utils\Arrays;
 use PDO;
 use PDOException;
 
 
 /**
  * Represents a connection between PHP and a database server.
- *
- * @property-read  ISupplementalDriver  $supplementalDriver
- * @property-read  string               $dsn
- * @property-read  PDO                  $pdo
  */
-class Connection extends Nette\Object
+class Connection
 {
-	/** @var callable[]  function (Connection $connection); Occurs after connection is established */
-	public $onConnect;
+	use Nette\SmartObject;
 
-	/** @var callable[]  function (Connection $connection, ResultSet|DriverException $result); Occurs after query is executed */
-	public $onQuery;
+	/** @var array<callable(self): void>  Occurs after connection is established */
+	public $onConnect = [];
+
+	/** @var array<callable(self, ResultSet|DriverException): void>  Occurs after query is executed */
+	public $onQuery = [];
 
 	/** @var array */
 	private $params;
@@ -33,22 +34,28 @@ class Connection extends Nette\Object
 	/** @var array */
 	private $options;
 
-	/** @var ISupplementalDriver */
+	/** @var Driver */
 	private $driver;
 
 	/** @var SqlPreprocessor */
 	private $preprocessor;
 
-	/** @var PDO */
+	/** @var PDO|null */
 	private $pdo;
 
+	/** @var callable(array, ResultSet): array */
+	private $rowNormalizer = [Helpers::class, 'normalizeRow'];
 
-	public function __construct($dsn, $user = NULL, $password = NULL, array $options = NULL)
+	/** @var string|null */
+	private $sql;
+
+	/** @var int */
+	private $transactionDepth = 0;
+
+
+	public function __construct(string $dsn, string $user = null, string $password = null, array $options = null)
 	{
-		if (func_num_args() > 4) { // compatibility
-			$options['driverClass'] = func_get_arg(4);
-		}
-		$this->params = array($dsn, $user, $password);
+		$this->params = [$dsn, $user, $password];
 		$this->options = (array) $options;
 
 		if (empty($options['lazy'])) {
@@ -57,8 +64,7 @@ class Connection extends Nette\Object
 	}
 
 
-	/** @return void */
-	public function connect()
+	public function connect(): void
 	{
 		if ($this->pdo) {
 			return;
@@ -74,70 +80,73 @@ class Connection extends Nette\Object
 		$class = empty($this->options['driverClass'])
 			? 'Nette\Database\Drivers\\' . ucfirst(str_replace('sql', 'Sql', $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME))) . 'Driver'
 			: $this->options['driverClass'];
-		$this->driver = new $class($this, $this->options);
+		$this->driver = new $class;
 		$this->preprocessor = new SqlPreprocessor($this);
-		$this->onConnect($this);
+		$this->driver->initialize($this, $this->options);
+		Arrays::invoke($this->onConnect, $this);
 	}
 
 
-	/** @return void */
-	public function reconnect()
+	public function reconnect(): void
 	{
 		$this->disconnect();
 		$this->connect();
 	}
 
 
-	/** @return void */
-	public function disconnect()
+	public function disconnect(): void
 	{
-		$this->pdo = NULL;
+		$this->pdo = null;
 	}
 
 
-	/** @return string */
-	public function getDsn()
+	public function getDsn(): string
 	{
 		return $this->params[0];
 	}
 
 
-	/** @return PDO */
-	public function getPdo()
+	public function getPdo(): PDO
 	{
 		$this->connect();
 		return $this->pdo;
 	}
 
 
-	/** @return ISupplementalDriver */
-	public function getSupplementalDriver()
+	public function getDriver(): Driver
 	{
 		$this->connect();
 		return $this->driver;
 	}
 
 
-	/**
-	 * @param  string  sequence object
-	 * @return string
-	 */
-	public function getInsertId($name = NULL)
+	/** @deprecated use getDriver() */
+	public function getSupplementalDriver(): Driver
+	{
+		$this->connect();
+		return $this->driver;
+	}
+
+
+	public function setRowNormalizer(?callable $normalizer): self
+	{
+		$this->rowNormalizer = $normalizer;
+		return $this;
+	}
+
+
+	public function getInsertId(string $sequence = null): string
 	{
 		try {
-			return $this->getPdo()->lastInsertId($name);
+			$res = $this->getPdo()->lastInsertId($sequence);
+			return $res === false ? '0' : $res;
 		} catch (PDOException $e) {
 			throw $this->driver->convertException($e);
 		}
 	}
 
 
-	/**
-	 * @param  string  string to be quoted
-	 * @param  int     data type hint
-	 * @return string
-	 */
-	public function quote($string, $type = PDO::PARAM_STR)
+	public function quote(string $string, int $type = PDO::PARAM_STR): string
 	{
 		try {
 			return $this->getPdo()->quote($string, $type);
@@ -147,73 +156,106 @@ class Connection extends Nette\Object
 	}
 
 
-	/** @return void */
-	function beginTransaction()
+	public function beginTransaction(): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		$this->query('::beginTransaction');
 	}
 
 
-	/** @return void */
-	function commit()
+	public function commit(): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		$this->query('::commit');
 	}
 
 
-	/** @return void */
-	public function rollBack()
+	public function rollBack(): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		$this->query('::rollBack');
 	}
 
 
 	/**
-	 * Generates and executes SQL query.
-	 * @param  string
-	 * @param  mixed   [parameters, ...]
-	 * @return ResultSet
+	 * @return mixed
 	 */
-	public function query($sql)
+	public function transaction(callable $callback)
 	{
-		$this->connect();
+		if ($this->transactionDepth === 0) {
+			$this->beginTransaction();
+		}
 
-		$args = is_array($sql) ? $sql : func_get_args(); // accepts arrays only internally
-		list($sql, $params) = count($args) > 1
-			? $this->preprocessor->process($args)
-			: array($args[0], array());
-
+		$this->transactionDepth++;
 		try {
-			$result = new ResultSet($this, $sql, $params);
-		} catch (PDOException $e) {
-			$this->onQuery($this, $e);
+			$res = $callback($this);
+		} catch (\Throwable $e) {
+			$this->transactionDepth--;
+			if ($this->transactionDepth === 0) {
+				$this->rollback();
+			}
 			throw $e;
 		}
-		$this->onQuery($this, $result);
+
+		$this->transactionDepth--;
+		if ($this->transactionDepth === 0) {
+			$this->commit();
+		}
+
+		return $res;
+	}
+
+
+	/**
+	 * Generates and executes SQL query.
+	 * @param  literal-string  $sql
+	 */
+	public function query(string $sql, ...$params): ResultSet
+	{
+		[$this->sql, $params] = $this->preprocess($sql, ...$params);
+		try {
+			$result = new ResultSet($this, $this->sql, $params, $this->rowNormalizer);
+		} catch (PDOException $e) {
+			Arrays::invoke($this->onQuery, $this, $e);
+			throw $e;
+		}
+		Arrays::invoke($this->onQuery, $this, $result);
 		return $result;
 	}
 
 
-	/**
-	 * @param  string
-	 * @return ResultSet
-	 */
-	public function queryArgs($sql, array $params)
+	/** @deprecated  use query() */
+	public function queryArgs(string $sql, array $params): ResultSet
 	{
-		array_unshift($params, $sql);
-		return $this->query($params);
+		return $this->query($sql, ...$params);
 	}
 
 
 	/**
-	 * @return [string, array]
+	 * @param  literal-string  $sql
+	 * @return array{string, array}
 	 */
-	public function preprocess($sql)
+	public function preprocess(string $sql, ...$params): array
 	{
 		$this->connect();
-		return func_num_args() > 1
+		return $params
 			? $this->preprocessor->process(func_get_args())
-			: array($sql, array());
+			: [$sql, []];
+	}
+
+
+	public function getLastQueryString(): ?string
+	{
+		return $this->sql;
 	}
 
 
@@ -222,59 +264,57 @@ class Connection extends Nette\Object
 
 	/**
 	 * Shortcut for query()->fetch()
-	 * @param  string
-	 * @param  mixed   [parameters, ...]
-	 * @return Row
+	 * @param  literal-string  $sql
 	 */
-	public function fetch($args)
+	public function fetch(string $sql, ...$params): ?Row
 	{
-		return $this->query(func_get_args())->fetch();
+		return $this->query($sql, ...$params)->fetch();
 	}
 
 
 	/**
 	 * Shortcut for query()->fetchField()
-	 * @param  string
-	 * @param  mixed   [parameters, ...]
+	 * @param  literal-string  $sql
 	 * @return mixed
 	 */
-	public function fetchField($args)
+	public function fetchField(string $sql, ...$params)
 	{
-		return $this->query(func_get_args())->fetchField();
+		return $this->query($sql, ...$params)->fetchField();
+	}
+
+
+	/**
+	 * Shortcut for query()->fetchFields()
+	 * @param  literal-string  $sql
+	 */
+	public function fetchFields(string $sql, ...$params): ?array
+	{
+		return $this->query($sql, ...$params)->fetchFields();
 	}
 
 
 	/**
 	 * Shortcut for query()->fetchPairs()
-	 * @param  string
-	 * @param  mixed   [parameters, ...]
-	 * @return array
+	 * @param  literal-string  $sql
 	 */
-	public function fetchPairs($args)
+	public function fetchPairs(string $sql, ...$params): array
 	{
-		return $this->query(func_get_args())->fetchPairs();
+		return $this->query($sql, ...$params)->fetchPairs();
 	}
 
 
 	/**
 	 * Shortcut for query()->fetchAll()
-	 * @param  string
-	 * @param  mixed   [parameters, ...]
-	 * @return array
+	 * @param  literal-string  $sql
 	 */
-	public function fetchAll($args)
+	public function fetchAll(string $sql, ...$params): array
 	{
-		return $this->query(func_get_args())->fetchAll();
+		return $this->query($sql, ...$params)->fetchAll();
 	}
 
 
-	/**
-	 * @return SqlLiteral
-	 */
-	public static function literal($value)
+	public static function literal(string $value, ...$params): SqlLiteral
 	{
-		$args = func_get_args();
-		return new SqlLiteral(array_shift($args), $args);
+		return new SqlLiteral($value, $params);
 	}
-
 }

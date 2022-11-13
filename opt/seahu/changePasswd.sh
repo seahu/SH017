@@ -25,10 +25,16 @@ passwd_new=$3
 
 correct=$(</etc/shadow awk -v user="$user" -F : 'user == $1 {print $2}')
 prefix=${correct%"${correct#\$*\$*\$}"}
+hash_type=${correct:1:1}
 prefix=${prefix%%\$}
 prefix=${prefix##*\$}
 
-compare=$(mkpasswd -msha-512 $passwd_old $prefix)
+if [ "$hash_type" == "5" ]; then
+    compare=$(mkpasswd -msha-256 $passwd $prefix)
+fi
+if [ "$hash_type" == "6" ]; then
+    compare=$(mkpasswd -msha-512 $passwd $prefix)
+fi
 
 if [ "$correct" != "$compare" ] ; then
     echo "1"

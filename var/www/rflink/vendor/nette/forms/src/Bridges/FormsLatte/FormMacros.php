@@ -5,15 +5,15 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\FormsLatte;
 
-use Nette;
 use Latte;
-use Latte\MacroNode;
-use Latte\PhpWriter;
 use Latte\CompileException;
+use Latte\MacroNode;
 use Latte\Macros\MacroSet;
-use Nette\Forms\Form;
+use Latte\PhpWriter;
 
 
 /**
@@ -24,19 +24,22 @@ use Nette\Forms\Form;
  * - {label name /} or {label name}... {/label}
  * - {inputError name}
  * - {formContainer name} ... {/formContainer}
+ * - {formContext name} ... {/formContext}
  */
-class FormMacros extends MacroSet
+final class FormMacros extends MacroSet
 {
-
-	public static function install(Latte\Compiler $compiler)
+	public static function install(Latte\Compiler $compiler): void
 	{
 		$me = new static($compiler);
-		$me->addMacro('form', array($me, 'macroForm'), 'echo Nette\Bridges\FormsLatte\Runtime::renderFormEnd($_form)');
-		$me->addMacro('formContainer', array($me, 'macroFormContainer'), '$formContainer = $_form = array_pop($_formStack)');
-		$me->addMacro('label', array($me, 'macroLabel'), array($me, 'macroLabelEnd'));
-		$me->addMacro('input', array($me, 'macroInput'), NULL, array($me, 'macroInputAttr'));
-		$me->addMacro('name', array($me, 'macroName'), array($me, 'macroNameEnd'), array($me, 'macroNameAttr'));
-		$me->addMacro('inputError', array($me, 'macroInputError'));
+		$me->addMacro('form', [$me, 'macroForm'], 'echo Nette\Bridges\FormsLatte\Runtime::renderFormEnd(array_pop($this->global->formsStack));');
+		$me->addMacro('formContext', [$me, 'macroFormContext'], 'array_pop($this->global->formsStack);');
+		$me->addMacro('formContainer', [$me, 'macroFormContainer'], 'array_pop($this->global->formsStack); $formContainer = end($this->global->formsStack)');
+		$me->addMacro('label', [$me, 'macroLabel'], [$me, 'macroLabelEnd'], null, self::AUTO_EMPTY);
+		$me->addMacro('input', [$me, 'macroInput']);
+		$me->addMacro('name', [$me, 'macroName'], [$me, 'macroNameEnd'], [$me, 'macroNameAttr']);
+		$me->addMacro('inputError', [$me, 'macroInputError']);
+		$me->addMacro('formPrint', [$me, 'macroFormPrint']);
+		$me->addMacro('formClassPrint', [$me, 'macroFormPrint']);
 	}
 
 
@@ -49,20 +52,47 @@ class FormMacros extends MacroSet
 	public function macroForm(MacroNode $node, PhpWriter $writer)
 	{
 		if ($node->modifiers) {
-			trigger_error("Modifiers are not allowed in {{$node->name}}", E_USER_WARNING);
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		if ($node->prefix) {
 			throw new CompileException('Did you mean <form n:name=...> ?');
 		}
 		$name = $node->tokenizer->fetchWord();
-		if ($name === FALSE) {
-			throw new CompileException("Missing form name in {{$node->name}}.");
+		if ($name == null) { // null or false
+			throw new CompileException('Missing form name in ' . $node->getNotation());
+		}
+		$node->replaced = true;
+		$node->tokenizer->reset();
+		return $writer->write(
+			'echo Nette\Bridges\FormsLatte\Runtime::renderFormBegin($form = $this->global->formsStack[] = '
+			. ($name[0] === '$' ? 'is_object(%node.word) ? %node.word : ' : '')
+			. '$this->global->uiControl[%node.word], %node.array)'
+			. " /* line $node->startLine */;"
+		);
+	}
+
+
+	/**
+	 * {formContext ...}
+	 */
+	public function macroFormContext(MacroNode $node, PhpWriter $writer)
+	{
+		if ($node->modifiers) {
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
+		}
+		if ($node->prefix) {
+			throw new CompileException('Did you mean <form n:name=...> ?');
+		}
+		$name = $node->tokenizer->fetchWord();
+		if ($name == null) { // null or false
+			throw new CompileException('Missing form name in ' . $node->getNotation());
 		}
 		$node->tokenizer->reset();
 		return $writer->write(
-			'echo Nette\Bridges\FormsLatte\Runtime::renderFormBegin($form = $_form = '
+			'$form = $this->global->formsStack[] = '
 			. ($name[0] === '$' ? 'is_object(%node.word) ? %node.word : ' : '')
-			. '$_control[%node.word], %node.array)'
+			. '$this->global->uiControl[%node.word]'
+			. " /* line $node->startLine */;"
 		);
 	}
 
@@ -73,15 +103,18 @@ class FormMacros extends MacroSet
 	public function macroFormContainer(MacroNode $node, PhpWriter $writer)
 	{
 		if ($node->modifiers) {
-			trigger_error("Modifiers are not allowed in {{$node->name}}", E_USER_WARNING);
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		$name = $node->tokenizer->fetchWord();
-		if ($name === FALSE) {
-			throw new CompileException("Missing name in {{$node->name}}.");
+		if ($name == null) { // null or false
+			throw new CompileException('Missing name in ' . $node->getNotation());
 		}
 		$node->tokenizer->reset();
 		return $writer->write(
-			'$_formStack[] = $_form; $formContainer = $_form = ' . ($name[0] === '$' ? 'is_object(%node.word) ? %node.word : ' : '') . '$_form[%node.word]'
+			'$this->global->formsStack[] = $formContainer = '
+			. ($name[0] === '$' ? 'is_object(%node.word) ? %node.word : ' : '')
+			. 'end($this->global->formsStack)[%node.word]'
+			. " /* line $node->startLine */;"
 		);
 	}
 
@@ -92,19 +125,23 @@ class FormMacros extends MacroSet
 	public function macroLabel(MacroNode $node, PhpWriter $writer)
 	{
 		if ($node->modifiers) {
-			trigger_error("Modifiers are not allowed in {{$node->name}}", E_USER_WARNING);
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		$words = $node->tokenizer->fetchWords();
 		if (!$words) {
-			throw new CompileException("Missing name in {{$node->name}}.");
+			throw new CompileException('Missing name in ' . $node->getNotation());
 		}
+		$node->replaced = true;
 		$name = array_shift($words);
 		return $writer->write(
-			($name[0] === '$' ? '$_input = is_object(%0.word) ? %0.word : $_form[%0.word]; if ($_label = $_input' : 'if ($_label = $_form[%0.word]')
-				. '->%1.raw) echo $_label'
-				. ($node->tokenizer->isNext() ? '->addAttributes(%node.array)' : ''),
+			($name[0] === '$'
+				? '$ʟ_input = is_object(%0.word) ? %0.word : end($this->global->formsStack)[%0.word]; if ($ʟ_label = $ʟ_input'
+				: 'if ($ʟ_label = end($this->global->formsStack)[%0.word]'
+			)
+			. '->%1.raw) echo $ʟ_label'
+			. ($node->tokenizer->isNext() ? '->addAttributes(%node.array)' : ''),
 			$name,
-			$words ? ('getLabelPart(' . implode(', ', array_map(array($writer, 'formatWord'), $words)) . ')') : 'getLabel()'
+			$words ? ('getLabelPart(' . implode(', ', array_map([$writer, 'formatWord'], $words)) . ')') : 'getLabel()'
 		);
 	}
 
@@ -114,9 +151,9 @@ class FormMacros extends MacroSet
 	 */
 	public function macroLabelEnd(MacroNode $node, PhpWriter $writer)
 	{
-		if ($node->content != NULL) {
+		if ($node->content != null) {
 			$node->openingCode = rtrim($node->openingCode, '?> ') . '->startTag() ?>';
-			return $writer->write('if ($_label) echo $_label->endTag()');
+			return $writer->write('if ($ʟ_label) echo $ʟ_label->endTag()');
 		}
 	}
 
@@ -127,29 +164,22 @@ class FormMacros extends MacroSet
 	public function macroInput(MacroNode $node, PhpWriter $writer)
 	{
 		if ($node->modifiers) {
-			trigger_error("Modifiers are not allowed in {{$node->name}}", E_USER_WARNING);
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		$words = $node->tokenizer->fetchWords();
 		if (!$words) {
-			throw new CompileException("Missing name in {{$node->name}}.");
+			throw new CompileException('Missing name in ' . $node->getNotation());
 		}
+		$node->replaced = true;
 		$name = array_shift($words);
 		return $writer->write(
-			($name[0] === '$' ? '$_input = is_object(%0.word) ? %0.word : $_form[%0.word]; echo $_input' : 'echo $_form[%0.word]')
-				. '->%1.raw'
-				. ($node->tokenizer->isNext() ? '->addAttributes(%node.array)' : ''),
+			($name[0] === '$' ? '$ʟ_input = $_input = is_object(%0.word) ? %0.word : end($this->global->formsStack)[%0.word]; echo $ʟ_input' : 'echo end($this->global->formsStack)[%0.word]')
+			. '->%1.raw'
+			. ($node->tokenizer->isNext() ? '->addAttributes(%node.array)' : '')
+			. " /* line $node->startLine */;",
 			$name,
-			$words ? 'getControlPart(' . implode(', ', array_map(array($writer, 'formatWord'), $words)) . ')' : 'getControl()'
+			$words ? 'getControlPart(' . implode(', ', array_map([$writer, 'formatWord'], $words)) . ')' : 'getControl()'
 		);
-	}
-
-
-	/**
-	 * deprecated n:input
-	 */
-	public function macroInputAttr(MacroNode $node, PhpWriter $writer)
-	{
-		throw new CompileException('Use n:name instead of n:input.');
 	}
 
 
@@ -160,31 +190,38 @@ class FormMacros extends MacroSet
 	{
 		$words = $node->tokenizer->fetchWords();
 		if (!$words) {
-			throw new CompileException("Missing name in n:{$node->name}.");
+			throw new CompileException('Missing name in ' . $node->getNotation());
 		}
 		$name = array_shift($words);
 		$tagName = strtolower($node->htmlNode->name);
-		$node->isEmpty = $tagName === 'input';
+		$node->empty = $tagName === 'input';
+
+		$definedHtmlAttributes = array_keys($node->htmlNode->attrs);
+		if (isset($node->htmlNode->macroAttrs['class'])) {
+			$definedHtmlAttributes[] = 'class';
+		}
 
 		if ($tagName === 'form') {
+			$node->openingCode = $writer->write(
+				'<?php $form = $this->global->formsStack[] = '
+				. ($name[0] === '$' ? 'is_object(%0.word) ? %0.word : ' : '')
+				. "\$this->global->uiControl[%0.word] /* line $node->startLine */; ?>",
+				$name
+			);
 			return $writer->write(
-				'echo Nette\Bridges\FormsLatte\Runtime::renderFormBegin($form = $_form = '
-					. ($name[0] === '$' ? 'is_object(%0.word) ? %0.word : ' : '')
-					. '$_control[%0.word], %1.var, FALSE)',
-				$name,
-				array_fill_keys(array_keys($node->htmlNode->attrs), NULL)
+				'echo Nette\Bridges\FormsLatte\Runtime::renderFormBegin(end($this->global->formsStack), %0.var, false)',
+				array_fill_keys($definedHtmlAttributes, null)
 			);
 		} else {
 			$method = $tagName === 'label' ? 'getLabel' : 'getControl';
 			return $writer->write(
-				'$_input = ' . ($name[0] === '$' ? 'is_object(%0.word) ? %0.word : ' : '')
-					. '$_form[%0.word]; echo $_input->%1.raw'
-					. ($node->htmlNode->attrs ? '->addAttributes(%2.var)' : '') . '->attributes()',
+				'$ʟ_input = $_input = ' . ($name[0] === '$' ? 'is_object(%0.word) ? %0.word : ' : '')
+				. 'end($this->global->formsStack)[%0.word]; echo $ʟ_input->%1.raw'
+				. ($definedHtmlAttributes ? '->addAttributes(%2.var)' : '') . '->attributes()'
+				. " /* line $node->startLine */;",
 				$name,
-				$words
-					? $method . 'Part(' . implode(', ', array_map(array($writer, 'formatWord'), $words)) . ')'
-					: "{method_exists(\$_input, '{$method}Part')?'{$method}Part':'{$method}'}()",
-				array_fill_keys(array_keys($node->htmlNode->attrs), NULL)
+				$method . 'Part(' . implode(', ', array_map([$writer, 'formatWord'], $words)) . ')',
+				array_fill_keys($definedHtmlAttributes, null)
 			);
 		}
 	}
@@ -202,20 +239,20 @@ class FormMacros extends MacroSet
 
 	public function macroNameEnd(MacroNode $node, PhpWriter $writer)
 	{
-		preg_match('#^(.*? n:\w+>)(.*)(<[^?].*)\z#s', $node->content, $parts);
 		$tagName = strtolower($node->htmlNode->name);
 		if ($tagName === 'form') {
-			$node->content = $parts[1] . $parts[2] . '<?php echo Nette\Bridges\FormsLatte\Runtime::renderFormEnd($_form, FALSE) ?>' . $parts[3];
+			$node->innerContent .= '<?php echo Nette\Bridges\FormsLatte\Runtime::renderFormEnd(array_pop($this->global->formsStack), false)'
+				. " /* line $node->startLine */; ?>";
 		} elseif ($tagName === 'label') {
-			if ($node->htmlNode->isEmpty) {
-				$node->content = $parts[1] . "<?php echo \$_input->{method_exists(\$_input, 'getLabelPart')?'getLabelPart':'getLabel'}()->getHtml() ?>" . $parts[3];
+			if ($node->htmlNode->empty) {
+				$node->innerContent = "<?php echo \$ʟ_input->getLabelPart()->getHtml() /* line $node->startLine */; ?>";
 			}
 		} elseif ($tagName === 'button') {
-			if ($node->htmlNode->isEmpty) {
-				$node->content = $parts[1] . '<?php echo htmlspecialchars($_input->caption) ?>' . $parts[3];
+			if ($node->htmlNode->empty) {
+				$node->innerContent = "<?php echo htmlspecialchars(\$ʟ_input->getCaption()) /* line $node->startLine */; ?>";
 			}
 		} else { // select, textarea
-			$node->content = $parts[1] . '<?php echo $_input->getControl()->getHtml() ?>' . $parts[3];
+			$node->innerContent = "<?php echo \$ʟ_input->getControl()->getHtml() /* line $node->startLine */; ?>";
 		}
 	}
 
@@ -226,30 +263,39 @@ class FormMacros extends MacroSet
 	public function macroInputError(MacroNode $node, PhpWriter $writer)
 	{
 		if ($node->modifiers) {
-			trigger_error("Modifiers are not allowed in {{$node->name}}", E_USER_WARNING);
+			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		$name = $node->tokenizer->fetchWord();
+		$node->replaced = true;
 		if (!$name) {
-			return $writer->write('echo %escape($_input->getError())');
+			return $writer->write("echo %escape(\$ʟ_input->getError()) /* line $node->startLine */;");
 		} elseif ($name[0] === '$') {
-			return $writer->write('$_input = is_object(%0.word) ? %0.word : $_form[%0.word]; echo %escape($_input->getError())', $name);
+			return $writer->write(
+				'$ʟ_input = is_object(%0.word) ? %0.word : end($this->global->formsStack)[%0.word];'
+				. "echo %escape(\$ʟ_input->getError()) /* line $node->startLine */;",
+				$name
+			);
 		} else {
-			return $writer->write('echo %escape($_form[%0.word]->getError())', $name);
+			return $writer->write("echo %escape(end(\$this->global->formsStack)[%0.word]->getError()) /* line $node->startLine */;", $name);
 		}
 	}
 
 
-	/** @deprecated */
-	public static function renderFormBegin(Form $form, array $attrs, $withTags = TRUE)
+	/**
+	 * {formPrint ClassName}
+	 * {formClassPrint ClassName}
+	 */
+	public function macroFormPrint(MacroNode $node, PhpWriter $writer)
 	{
-		echo Runtime::renderFormBegin($form, $attrs, $withTags);
+		$name = $node->tokenizer->fetchWord();
+		if ($name == null) { // null or false
+			throw new CompileException('Missing form name in ' . $node->getNotation());
+		}
+		$node->tokenizer->reset();
+		return $writer->write(
+			'Nette\Bridges\FormsLatte\Runtime::render' . $node->name . '('
+			. ($name[0] === '$' ? 'is_object(%node.word) ? %node.word : ' : '')
+			. '$this->global->uiControl[%node.word]); exit;'
+		);
 	}
-
-
-	/** @deprecated */
-	public static function renderFormEnd(Form $form, $withTags = TRUE)
-	{
-		echo Runtime::renderFormEnd($form, $withTags);
-	}
-
 }

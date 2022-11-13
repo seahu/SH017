@@ -5,17 +5,21 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database\Conventions;
 
-use Nette\Database\IConventions;
-use Nette\Object;
+use Nette;
+use Nette\Database\Conventions;
 
 
 /**
  * Conventions based on static definition.
  */
-class StaticConventions extends Object implements IConventions
+class StaticConventions implements Conventions
 {
+	use Nette\SmartObject;
+
 	/** @var string */
 	protected $primary;
 
@@ -28,11 +32,11 @@ class StaticConventions extends Object implements IConventions
 
 	/**
 	 * Create static conventional structure.
-	 * @param  string %s stands for table name
-	 * @param  string %1$s stands for key used after ->, %2$s for table name
-	 * @param  string %1$s stands for key used after ->, %2$s for table name
+	 * @param  string  $primary  %s stands for table name
+	 * @param  string  $foreign  %1$s stands for key used after ->, %2$s for table name
+	 * @param  string  $table  %1$s stands for key used after ->, %2$s for table name
 	 */
-	public function __construct($primary = 'id', $foreign = '%s_id', $table = '%s')
+	public function __construct(string $primary = 'id', string $foreign = '%s_id', string $table = '%s')
 	{
 		$this->primary = $primary;
 		$this->foreign = $foreign;
@@ -40,39 +44,41 @@ class StaticConventions extends Object implements IConventions
 	}
 
 
-	public function getPrimary($table)
+	public function getPrimary(string $table): string
 	{
 		return sprintf($this->primary, $this->getColumnFromTable($table));
 	}
 
 
-	public function getHasManyReference($table, $key)
+	public function getHasManyReference(string $table, string $key): ?array
 	{
 		$table = $this->getColumnFromTable($table);
-		return array(
+		return [
 			sprintf($this->table, $key, $table),
 			sprintf($this->foreign, $table, $key),
-		);
+		];
 	}
 
 
-	public function getBelongsToReference($table, $key)
+	public function getBelongsToReference(string $table, string $key): ?array
 	{
 		$table = $this->getColumnFromTable($table);
-		return array(
+		return [
 			sprintf($this->table, $key, $table),
 			sprintf($this->foreign, $key, $table),
-		);
+		];
 	}
 
 
-	protected function getColumnFromTable($name)
+	protected function getColumnFromTable(string $name): string
 	{
-		if ($this->table !== '%s' && preg_match('(^' . str_replace('%s', '(.*)', preg_quote($this->table)) . '\z)', $name, $match)) {
+		if (
+			$this->table !== '%s'
+			&& preg_match('(^' . str_replace('%s', '(.*)', preg_quote($this->table)) . '$)D', $name, $match)
+		) {
 			return $match[1];
 		}
 
 		return $name;
 	}
-
 }

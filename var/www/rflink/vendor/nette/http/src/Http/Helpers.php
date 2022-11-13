@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Http;
 
 use Nette;
@@ -14,76 +16,44 @@ use Nette\Utils\DateTime;
 /**
  * Rendering helpers for HTTP.
  */
-class Helpers
+final class Helpers
 {
+	use Nette\StaticClass;
+
+	/** @internal */
+	public const STRICT_COOKIE_NAME = '_nss';
+
 
 	/**
 	 * Returns HTTP valid date format.
-	 * @param  string|int|\DateTime
-	 * @return string
+	 * @param  string|int|\DateTimeInterface  $time
 	 */
-	public static function formatDate($time)
+	public static function formatDate($time): string
 	{
-		$time = DateTime::from($time);
-		$time->setTimezone(new \DateTimeZone('GMT'));
+		$time = DateTime::from($time)->setTimezone(new \DateTimeZone('GMT'));
 		return $time->format('D, d M Y H:i:s \G\M\T');
 	}
 
 
 	/**
 	 * Is IP address in CIDR block?
-	 * @return bool
 	 */
-	public static function ipMatch($ip, $mask)
+	public static function ipMatch(string $ip, string $mask): bool
 	{
-		list($mask, $size) = explode('/', $mask . '/');
-		$tmp = function ($n) { return sprintf('%032b', $n); };
+		[$mask, $size] = explode('/', $mask . '/');
+		$tmp = function (int $n): string { return sprintf('%032b', $n); };
 		$ip = implode('', array_map($tmp, unpack('N*', inet_pton($ip))));
 		$mask = implode('', array_map($tmp, unpack('N*', inet_pton($mask))));
 		$max = strlen($ip);
-		if (!$max || $max !== strlen($mask) || $size < 0 || $size > $max) {
-			return FALSE;
+		if (!$max || $max !== strlen($mask) || (int) $size < 0 || (int) $size > $max) {
+			return false;
 		}
-		return strncmp($ip, $mask, $size === '' ? $max : $size) === 0;
+		return strncmp($ip, $mask, $size === '' ? $max : (int) $size) === 0;
 	}
 
 
-	/**
-	 * Removes duplicate cookies from response.
-	 * @return void
-	 * @internal
-	 */
-	public static function removeDuplicateCookies()
+	public static function initCookie(IRequest $request, IResponse $response)
 	{
-		if (headers_sent($file, $line) || ini_get('suhosin.cookie.encrypt')) {
-			return;
-		}
-
-		$flatten = array();
-		foreach (headers_list() as $header) {
-			if (preg_match('#^Set-Cookie: .+?=#', $header, $m)) {
-				$flatten[$m[0]] = $header;
-				header_remove('Set-Cookie');
-			}
-		}
-		foreach (array_values($flatten) as $key => $header) {
-			header($header, $key === 0);
-		}
+		$response->setCookie(self::STRICT_COOKIE_NAME, '1', 0, '/', null, null, true, IResponse::SAME_SITE_STRICT);
 	}
-
-
-	/**
-	 * @internal
-	 */
-	public static function stripSlashes($arr, $onlyKeys = FALSE)
-	{
-		$res = array();
-		foreach ($arr as $k => $v) {
-			$res[stripslashes($k)] = is_array($v)
-				? self::stripSlashes($v, $onlyKeys)
-				: ($onlyKeys ? $v : stripslashes($v));
-		}
-		return $res;
-	}
-
 }

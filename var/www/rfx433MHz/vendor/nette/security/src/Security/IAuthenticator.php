@@ -5,20 +5,25 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 
 /**
- * Performs authentication.
+ * @deprecated  update to Nette\Security\Authenticator
+ * @method IIdentity authenticate(array $credentials)
  */
 interface IAuthenticator
 {
 	/** Credential key */
-	const USERNAME = 0,
+	public const
+		USERNAME = 0,
 		PASSWORD = 1;
 
 	/** Exception error code */
-	const IDENTITY_NOT_FOUND = 1,
+	public const
+		IDENTITY_NOT_FOUND = 1,
 		INVALID_CREDENTIAL = 2,
 		FAILURE = 3,
 		NOT_APPROVED = 4;
@@ -26,9 +31,7 @@ interface IAuthenticator
 	/**
 	 * Performs an authentication against e.g. database.
 	 * and returns IIdentity on success or throws AuthenticationException
-	 * @return IIdentity
 	 * @throws AuthenticationException
 	 */
-	function authenticate(array $credentials);
-
+	//function authenticate(array $credentials): IIdentity;
 }

@@ -5,10 +5,10 @@
 # This provides a menu driven application using the LCD Plates
 # from Adafruit Electronics.
 
-import commands
+import subprocess
 import os
 import glob # proprochazeni adresaru
-from string import split
+#from string import split # in python3 is standart no need import
 from time import sleep, strftime, localtime
 from datetime import datetime, timedelta
 from xml.dom.minidom import *
@@ -219,58 +219,58 @@ def w1_3A(directory):
     status=[]
     name=["PORT A","PORT B"]
     for i in range(2):
-	f=open(files[i],'r')
-	status.append( f.read(1) )
-	f.close
+        f=open(files[i],'r')
+        status.append( f.read(1) )
+        f.close
     cur=0
     display=True
     while 1:
-	if lcd.buttonPressed(lcd.UP):
-	    if cur>0 :
-		cur-=1
-		display=True
-	if lcd.buttonPressed(lcd.DOWN):
-	    if (cur+1)<len(status) :
-		cur+=1
-		display=True
-	if lcd.buttonPressed(lcd.LEFT):
-	    if status[cur]=='0': #jepotreba zapnout
-		status[cur]='1'
-		f=open(files[cur],'w')
-		f.write(status[cur])
-		f.flush()
-		f.close()
-		display=True
-	if lcd.buttonPressed(lcd.RIGHT):
-	    if status[cur]=='1': #jepotreba zapnout
-		status[cur]='0'
-		f=open(files[cur],'w')
-		f.write(status[cur])
-		f.flush()
-		f.close()
-		display=True
-	if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ):
-	    break
-	if display==True:
-	    lcd.clear()
-	    lcd.home()
-	    str=os.path.basename(directory)
-	    lcd.message(str)
-	    lcd.set_cursor(0, 1)
-	    lcd.message(name[cur])
-	    lcd.set_cursor(0, 2)
-	    if status[cur]=='0':
-		print "PORT OFF"
-		lcd.message("ON", False)
-		lcd.set_cursor(5, 2)
-		lcd.message("OFF",True)
-	    else:
-		print "PORT ON"
-		lcd.message("ON",True)
-		lcd.set_cursor(5, 2)
-		lcd.message("OFF",False)
-	    display=False
-	sleep(0.25)
+        if lcd.buttonPressed(lcd.UP):
+            if cur>0 :
+                cur-=1
+                display=True
+        if lcd.buttonPressed(lcd.DOWN):
+            if (cur+1)<len(status) :
+                cur+=1
+                display=True
+        if lcd.buttonPressed(lcd.LEFT):
+            if status[cur]=='0': #jepotreba zapnout
+                status[cur]='1'
+                f=open(files[cur],'w')
+                f.write(status[cur])
+                f.flush()
+                f.close()
+                display=True
+        if lcd.buttonPressed(lcd.RIGHT):
+            if status[cur]=='1': #jepotreba zapnout
+                status[cur]='0'
+                f=open(files[cur],'w')
+                f.write(status[cur])
+                f.flush()
+                f.close()
+                display=True
+        if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ):
+            break
+        if display==True:
+            lcd.clear()
+            lcd.home()
+            str=os.path.basename(directory)
+            lcd.message(str)
+            lcd.set_cursor(0, 1)
+            lcd.message(name[cur])
+            lcd.set_cursor(0, 2)
+            if status[cur]=='0':
+                print("PORT OFF")
+                lcd.message("ON", False)
+                lcd.set_cursor(5, 2)
+                lcd.message("OFF",True)
+            else:
+                print("PORT ON")
+                lcd.message("ON",True)
+                lcd.set_cursor(5, 2)
+                lcd.message("OFF",False)
+            display=False
+        sleep(0.25)
 
 def w1_28(directory):
     f=open(directory+"/temperature9",'r')
@@ -285,8 +285,8 @@ def w1_28(directory):
     lcd.set_cursor(0, 2)
     lcd.message(temp)
     while 1:
-	if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ): break
-	sleep(0.25)
+        if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ): break
+        sleep(0.25)
 
 
 
@@ -294,59 +294,59 @@ def w1():
     lcd.clear()
     lcd.home()
     bus=glob.glob("/mnt/1wire/bus.0/*")
-    print bus
+    print(bus)
     bus.remove("/mnt/1wire/bus.0/interface")
     lenBus=len(bus)
-    print "len", lenBus
+    print("len", lenBus)
     if (lenBus<1) :
-	lcd.message("NO 1WIRE DEVICES")
-	sleep(5)
-	return
+        lcd.message("NO 1WIRE DEVICES")
+        sleep(5)
+        return
     shift=0
     cur=0
     display=True
     while 1:
-	if lcd.buttonPressed(lcd.DOWN):
-	    if (cur+1)<lenBus :
-		cur+=1
-		display=True
-		if (shift+DISPLAY_ROWS) <= cur:
-		    shift=cur-DISPLAY_ROWS
-	if lcd.buttonPressed(lcd.UP):
-	    if cur>0 :
-		cur-=1
-		display=True
-		if shift > cur:
-		    shift=cur
-	if ( lcd.buttonPressed(lcd.RIGHT) or lcd.buttonPressed(lcd.SELECT) ):
-	    #ukaz obsah cidla
-	    lcd.clear()
-	    lcd.home()
-	    str=os.path.basename(bus[cur])
-	    lcd.message(str)
-	    if str[0:2]=="3A" : w1_3A(bus[cur])
-	    elif str[0:2]=="28" : w1_28(bus[cur])
-	    else:
-		lcd.set_cursor(0, 1)
-		lcd.message("This device\nnot have display\nsupport")
-		while 1:
-		    if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) or lcd.buttonPressed(lcd.LEFT)) : break
-		    sleep(0.25)
-	    display=True
-	if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.ESC) ):
-	    return
-	if display==True :
-	    lcd.clear()
-	    lcd.home()
-	    for i in range(DISPLAY_ROWS):
-		if (shift+i)>=lenBus : break
-		lcd.set_cursor(1, i)
-		str=os.path.basename(bus[shift+i])
-		if (shift+i)==cur : str="-"+str
-		else : str=" "+str
-		lcd.message(str)
-	    display=False
-	sleep(0.25)
+        if lcd.buttonPressed(lcd.DOWN):
+            if (cur+1)<lenBus :
+                cur+=1
+                display=True
+                if (shift+DISPLAY_ROWS) <= cur:
+                    shift=cur-DISPLAY_ROWS
+        if lcd.buttonPressed(lcd.UP):
+            if cur>0 :
+                cur-=1
+                display=True
+                if shift > cur:
+                    shift=cur
+        if ( lcd.buttonPressed(lcd.RIGHT) or lcd.buttonPressed(lcd.SELECT) ):
+            #ukaz obsah cidla
+            lcd.clear()
+            lcd.home()
+            str=os.path.basename(bus[cur])
+            lcd.message(str)
+            if str[0:2]=="3A" : w1_3A(bus[cur])
+            elif str[0:2]=="28" : w1_28(bus[cur])
+            else:
+                lcd.set_cursor(0, 1)
+                lcd.message("This device\nnot have display\nsupport")
+                while 1:
+                    if ( lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) or lcd.buttonPressed(lcd.LEFT)) : break
+                    sleep(0.25)
+            display=True
+        if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.ESC) ):
+            return
+        if display==True :
+            lcd.clear()
+            lcd.home()
+            for i in range(DISPLAY_ROWS):
+                if (shift+i)>=lenBus : break
+                lcd.set_cursor(1, i)
+                str=os.path.basename(bus[shift+i])
+                if (shift+i)==cur : str="-"+str
+                else : str=" "+str
+                lcd.message(str)
+            display=False
+        sleep(0.25)
 
 #--------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------- SYSTEM COMANDS ------------------------------------------
@@ -361,12 +361,12 @@ def DoQuit():
             break
         if lcd.buttonPressed(lcd.SELECT):
             lcd.clear()
-	    lcd.LCDoff()
+            lcd.LCDoff()
             quit()
         sleep(0.25)
 
 def DoTestHW():
-    commands.getoutput("/opt/seahu/test_hardware.py")
+    subprocess.getoutput("/opt/seahu/test_hardware.py")
 
 def DoShutdown():
     lcd.clear()
@@ -376,8 +376,8 @@ def DoShutdown():
             break
         if lcd.buttonPressed(lcd.SELECT):
             lcd.clear()
-	    lcd.LCDoff()
-            commands.getoutput("sudo shutdown -h now")
+            lcd.LCDoff()
+            subprocess.getoutput("sudo shutdown -h now")
             quit()
         sleep(0.25)
 
@@ -390,7 +390,7 @@ def DoReboot():
         if lcd.buttonPressed(lcd.SELECT):
             lcd.clear()
             lcd.LCDoff()
-            commands.getoutput("sudo reboot")
+            subprocess.getoutput("sudo reboot")
             quit()
         sleep(0.25)
 
@@ -535,27 +535,40 @@ def SetDateTime():
 #-------------------------------------------------- NETWORK COMANDS ------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 
-# show networ statusk line is selected line of output cammand /opt/seahu/getNetSeting.sh 
-# line:
-# 0 - mac
-# 1 - ip
-# 2 - netmask
-# 3 - gateway
-# 4 - DNS
-# 5 - dhcp client (dhcp or static)
-def ShowActualyNetworkStatus(title,line):
+def netReadInterfaceSeting():
+    ans={'mac':'','actual_ip':'','actual_netmask':'','actual_gateway':'','actual_dns':'','static_ip':'','static_netmask':'','static_gateway':'','static_dns':'','dns':'','dhcp':''}
+    lines=subprocess.getoutput("/opt/seahu/getNetSeting.sh").split("\n")
+    for line in lines:
+        for key in ans.keys():
+            if line[:line.find(':')] == key : ans[key]=line[line.find(':')+1:] # if line start witch key: then set ans ky to value after first : etc. line="mac:b8:27:eb:d8:18:3f" key="mac" ans['mac']="b8:27:eb:d8:18:3f"
+    return ans
+
+
+
+# show actual networ config by key:
+#  mac
+#  ip
+#  netmask
+#  gateway
+#  DNS
+#  dhcp client (dhcp or static)
+def ShowActualyNetworkStatus(title,key):
     lcd.clear()
     lcd.message(title)
     lcd.set_cursor(0,1)
     lcd.message("-"*len(title))
     lcd.set_cursor(0,2)
-    val=commands.getoutput("/opt/seahu/getNetSeting.sh").split("\n")[line]
+    val=netReadInterfaceSeting()[key]
+    print("val:", val)
+    if key=='dhcp':
+        if val==1 : val="DHCP"
+        else: val="STATIC"
     if len(val)>16:
-	lcd.message(val[:16])
-	lcd.set_cursor(0,3)
-	lcd.message(val[16:])
+        lcd.message(val[:16])
+        lcd.set_cursor(0,3)
+        lcd.message(val[16:])
     else:
-	lcd.message(val)
+        lcd.message(val)
     while 1:
         if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ):
             break
@@ -563,22 +576,22 @@ def ShowActualyNetworkStatus(title,line):
 
 
 def ShowIPAddress():
-    ShowActualyNetworkStatus("IP address:",1)
+    ShowActualyNetworkStatus("IP address:","actual_ip")
 
 def ShowNetmask():
-    ShowActualyNetworkStatus("Netmask:",2)
+    ShowActualyNetworkStatus("Netmask:","actual_netmask")
 
 def ShowGateway():
-    ShowActualyNetworkStatus("Gateway:",3)
+    ShowActualyNetworkStatus("Gateway:","actual_gateway")
 
 def ShowDNS():
-    ShowActualyNetworkStatus("DNS server:",4)
+    ShowActualyNetworkStatus("DNS server:","actual_dns")
 
 def ShowMAC():
-    ShowActualyNetworkStatus("Mac address:",0)
+    ShowActualyNetworkStatus("Mac address:","mac")
 
 def ShowDHCP():
-    ShowActualyNetworkStatus("Setting TCP/IP:",5)
+    ShowActualyNetworkStatus("Setting TCP/IP:","dhcp")
 
 
 # input ip addres
@@ -593,157 +606,139 @@ def inputIP(title,addr=""):
     arr=addr.split(".")
     addr=""
     for item in arr:
-	while len(item)<3:
-	    item="0"+item
-	if addr=="": addr=item
-	else: addr+="."+item
+        while len(item)<3:
+            item="0"+item
+        if addr=="": addr=item
+        else: addr+="."+item
     CharList=['0','1','2','3','4','5','6','7','8','9']
     curposition = 0
     curCharList=ord(addr[curposition+curposition//3])-ord('0')
     change=True
     while 1:
         if lcd.buttonPressed(lcd.UP):
-	    if (curCharList<9) : curCharList += 1
-	    else: curCharList=0
-	    mcur=curposition+curposition//3
-	    addr = addr[:mcur] + CharList[curCharList] + addr[mcur+1:]
-	    change=True
+            if (curCharList<9) : curCharList += 1
+            else: curCharList=0
+            mcur=curposition+curposition//3
+            addr = addr[:mcur] + CharList[curCharList] + addr[mcur+1:]
+            change=True
         if lcd.buttonPressed(lcd.DOWN):
-	    if (curCharList>0): curCharList -= 1
-	    else: curCharList=9
-	    mcur=curposition+curposition//3
-	    addr = addr[:mcur] + CharList[curCharList] + addr[mcur+1:]
-	    change=True
+            if (curCharList>0): curCharList -= 1
+            else: curCharList=9
+            mcur=curposition+curposition//3
+            addr = addr[:mcur] + CharList[curCharList] + addr[mcur+1:]
+            change=True
         if lcd.buttonPressed(lcd.RIGHT):
             if curposition < 14: curposition += 1
-	    curCharList=ord(addr[curposition+curposition//3])-ord('0')
-	    change=True
+            curCharList=ord(addr[curposition+curposition//3])-ord('0')
+            change=True
         if lcd.buttonPressed(lcd.LEFT):
-	    if curposition >  0: curposition -= 1
-	    curCharList=ord(addr[curposition+curposition//3])-ord('0')
-	    change=True
+            if curposition >  0: curposition -= 1
+            curCharList=ord(addr[curposition+curposition//3])-ord('0')
+            change=True
         if lcd.buttonPressed(lcd.SELECT):
             # return the word
             break
         if lcd.buttonPressed(lcd.ESC):
             return False
 
-	if change==True:
-	    lcd.set_cursor(0,2)
-    	    lcd.message(addr)
-	    lcd.set_cursor(curposition+curposition//3, 2)
-    	    lcd.message(CharList[curCharList],True)
-	    change=False
+        if change==True:
+            lcd.set_cursor(0,2)
+            lcd.message(addr)
+            lcd.set_cursor(curposition+curposition//3, 2)
+            lcd.message(CharList[curCharList],True)
+            change=False
         sleep(0.15)
 
     arr=addr.split(".")
     addr=""
     check=True
     for item in arr:
-	item=int(item)
-	if item>255: check=False
-	print "item:",item
-	if addr=="": addr="%d" %item
-	else: addr+=".%d" % item
+        item=int(item)
+        if item>255: check=False
+        print("item:",item)
+        if addr=="": addr="%d" %item
+        else: addr+=".%d" % item
     if check==False:
-	lcd.clear()
-	lcd.set_cursor(0,1)
-	lcd.message("Numbers must be")
-	lcd.set_cursor(0,2)
-	lcd.message("in range 0-255")
-	sleep(4)
-	inputIP(title,addr)
+        lcd.clear()
+        lcd.set_cursor(0,1)
+        lcd.message("Numbers must be")
+        lcd.set_cursor(0,2)
+        lcd.message("in range 0-255")
+        sleep(4)
+        inputIP(title,addr)
     return addr
 
 
-def netReadInterfaceSeting():
-    ans={'address':'','netmask':'','gateway':'','dns-nameservers':'','dhcp':''}
-    f = open('/etc/network/interfaces.d/eth0', 'r')
-    for line in f:
-	words=line.strip().split(" ")
-	if words[0]=="address": ans['address'] = words[1]
-	if words[0]=="netmask": ans['netmask'] = words[1]
-	if words[0]=="gateway": ans['gateway'] = words[1]
-	if words[0]=="dns-nameservers": ans['dns-nameservers'] = words[1]
-	if words[0]=="iface": 
-	    if words[3]=="dhcp": ans['dhcp'] = True
-	    else: ans['dhcp'] = False
-    f.close()
-    return ans
 
 def netWriteInterfaceSeting(set):
-    f = open('/etc/network/interfaces.d/eth0', 'w')
-    if set['dhcp']==False:
-	f.write("iface eth0 inet static\n")
-	for key in set.keys():
-	    if key=="dhcp": continue
-	    if set[key]=="": continue
-	    f.write("	%s %s\n" %(key, set[key]) )
-    else:
-	f.write("iface eth0 inet dhcp\n")
-    f.close
+    arg=""
+    for key in set.keys():
+        if key=="static_ip" : arg=arg+" -i "+set[key]
+        if key=="static_netmask" : arg=arg+" -n "+set[key]
+        if key=="static_gateway" : arg=arg+" -g "+set[key]
+        if key=="static_dns"     : arg=arg+" -d "+set[key]
+        if key=="dhcp"           : arg=arg+" -I "+set[key]
+    print("/opt/seahu/setNetSeting.sh"+arg)
+    subprocess.getoutput("/opt/seahu/setNetSeting.sh"+arg)
 
 # if set manualy ip seting then automaticaly off dhcp clinet this is hleper hwo inform user about it
-def checkOffDHCP(set):
-    if set['dhcp']==True:
-	lcd.clear()
-	lcd.set_cursor(0,1)
-	lcd.message("Add seting")
-	lcd.set_cursor(0,2)
-	lcd.message("No use DHCP")
-	sleep(3)
-    return False
+#def checkOffDHCP(set):
+#    if set['dhcp']==1:
+#        lcd.clear()
+#        lcd.set_cursor(0,1)
+#        lcd.message("Add seting")
+#        lcd.set_cursor(0,2)
+#        lcd.message("No use DHCP")
+#        sleep(3)
+#    return False
 
 def SetIPAddress():
     set=netReadInterfaceSeting()
-    print set
-    ip=set['address']
-    if ip=='': ip=commands.getoutput("/opt/seahu/getNetSeting.sh").split("\n")[1]
+    print(set)
+    ip=set['static_ip']
+    if ip=='': ip=set['actual_ip']
     newIP=inputIP("IPaddress:",ip)
     if newIP==False: return
-    set['address']=newIP
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_ip']=newIP
+    print(set)
     netWriteInterfaceSeting(set)
 
 def SetNetmask():
     set=netReadInterfaceSeting()
-    print set
-    netmask=set['netmask']
-    if netmask=='': netmask=commands.getoutput("/opt/seahu/getNetSeting.sh").split("\n")[2]
+    print(set)
+    netmask=set['static_netmask']
+    if netmask=='': netmask=set['actual_netmask']
     newNetmask=inputIP("Netmask:",netmask)
     if newNetmask==False: return
-    set['netmask']=newNetmask
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_netmask']=newNetmask
+    print(set)
     netWriteInterfaceSeting(set)
     
 def SetGateway():
     set=netReadInterfaceSeting()
-    print set
-    gateway=set['gateway']
-    if gateway=='': gateway=commands.getoutput("/opt/seahu/getNetSeting.sh").split("\n")[3]
+    print(set)
+    gateway=set['static_gateway']
+    if gateway=='': gateway=set['actual_gateway']
     newGateway=inputIP("Gateway:",gateway)
     if newGateway==False: return
-    set['gateway']=newGateway
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_gateway']=newGateway
+    print(set)
     netWriteInterfaceSeting(set)
 
 def SetDNS():
     set=netReadInterfaceSeting()
-    print set
-    dns=set['dns-nameservers']
-    if dns=='': dns=commands.getoutput("/opt/seahu/getNetSeting.sh").split("\n")[4]
+    print(set)
+    dns=set['static_dns']
+    if dns=='': dns=set['actual_dns']
     newDNS=inputIP("DNS:",dns)
     if newDNS==False: return
-    set['dns-nameservers']=newDNS
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_dns']=newDNS
+    print(set)
     netWriteInterfaceSeting(set)
 
 def SetDHCP():
     set=netReadInterfaceSeting()
+    print(set)
     dhcp=set['dhcp']
     lcd.clear()
     lcd.home()
@@ -752,23 +747,31 @@ def SetDHCP():
     lcd.message("---------")
     change=True
     while 1:
-	if lcd.buttonPressed(lcd.LEFT):
-	    dhcp=False
-	    change=True
-	if lcd.buttonPressed(lcd.RIGHT):
-	    dhcp=True
-	    change=True
-	if lcd.buttonPressed(lcd.ESC):
-	    return False
-	if lcd.buttonPressed(lcd.SELECT):
-	    break
+        if lcd.buttonPressed(lcd.LEFT):
+            dhcp='0'
+            change=True
+        if lcd.buttonPressed(lcd.RIGHT):
+            dhcp='1'
+            change=True
+        if lcd.buttonPressed(lcd.ESC):
+            return False
+        if lcd.buttonPressed(lcd.SELECT):
+            break
         if change==True:
-	    lcd.set_cursor(0,2)
-	    lcd.message("NO ",not dhcp)
-	    lcd.set_cursor(5,2)
-	    lcd.message("YES",dhcp)
-	    change=False
-	sleep(0.15)
+            if dhcp=='1' : 
+                inversion=True
+                no="no "
+                yes="YES"
+            else:
+                inversion=False
+                no="NO "
+                yes="yes"
+            lcd.set_cursor(0,2)
+            lcd.message(no,not inversion)
+            lcd.set_cursor(5,2)
+            lcd.message(yes,inversion)
+            change=False
+        sleep(0.15)
     set['dhcp']=dhcp
     netWriteInterfaceSeting(set)
 
@@ -777,82 +780,103 @@ def SetDHCP():
 #-------------------------------------------------- WIFI COMANDS ------------------------------------------
 #--------------------------------------------------------------------------------------------------------------
 
-# show networ status line is selected line of output cammand /opt/seahu/getNetSeting.sh 
-# line:
-# 0 - mac
-# 1 - ip
-# 2 - netmask
-# 3 - gateway
-# 4 - DNS
-# 5 - dhcp client (dhcp or static)
-# 6 - sid
-# 7 - psk
+def WifiReadInterfaceSeting():
+    ans={'enable_wlan':'','wifi_mode':'','mac':'','actual_ip':'','actual_netmask':'','actual_gateway':'','actual_dns':'','static_ip':'','static_netmask':'','static_gateway':'','statuc_dns':'','dhcp':'','ap_country':'','ap_sid':'','ap_psk':'','ap_channel':'','client_country':'','client_sid':'','client_psk':'','client_connect':'','client_signal':'','forward':'','enable_dhcpd':'','dhcpd_pool_ip1':'','dhcpd_pool_ip2':'','mat':''}
+    lines=subprocess.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")
+    for line in lines:
+        for key in ans.keys():
+            if line[:line.find(':')] == key : ans[key]=line[line.find(':')+1:] # if line start witch key: then set ans ky to value after first : etc. line="mac:b8:27:eb:d8:18:3f" key="mac" ans['mac']="b8:27:eb:d8:18:3f"
+    print(ans)
+    return ans
 
-def ShowActualyWifiStatus(title,line):
+
+# show networ config
+# key:
+#  mac
+#  actual_ip
+#  actual_netmask
+#  actual_gateway
+#  actual_ns
+#  dhcp (client dhcp or static)
+#  client_sid
+#  client_psk
+#  wifi_mode
+#  ap_sid
+#  ap_psk
+#  ap_channel
+#  enable_wlan
+def ShowActualyWifiStatus(title,key):
     lcd.clear()
     lcd.message(title)
     lcd.set_cursor(0,1)
     lcd.message("-"*len(title))
     lcd.set_cursor(0,2)
-    val=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")[line]
+    val=WifiReadInterfaceSeting()[ley]
+    if key==dhcp:
+        if val==1 : val="DHCP"
+        else: val="STATIC"
+
     if len(val)>16:
-	lcd.message(val[:16])
-	lcd.set_cursor(0,3)
-	lcd.message(val[16:])
+        lcd.message(val[:16])
+        lcd.set_cursor(0,3)
+        lcd.message(val[16:])
     else:
-	lcd.message(val)
+        lcd.message(val)
     while 1:
         if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ):
             break
         sleep(0.25)
 
 def WifiShowIPAddress():
-    ShowActualyWifiStatus("IP address:",1)
+    ShowActualyWifiStatus("IP address:","actual_ip")
 
 def WifiShowNetmask():
-    ShowActualyWifiStatus("Netmask:",2)
+    ShowActualyWifiStatus("Netmask:","actual_netmask")
 
 def WifiShowGateway():
-    ShowActualyWifiStatus("Gateway:",3)
+    ShowActualyWifiStatus("Gateway:","actual_gateway")
 
 def WifiShowDNS():
-    ShowActualyWifiStatus("DNS server:",4)
+    ShowActualyWifiStatus("DNS server:","actual_dns")
 
 def WifiShowMAC():
-    ShowActualyWifiStatus("Mac address:",0)
+    ShowActualyWifiStatus("Mac address:","mac")
 
 def WifiShowDHCP():
-    ShowActualyWifiStatus("Setting TCP/IP:",5)
+    ShowActualyWifiStatus("Setting TCP/IP:","dhcp")
 
 def WifiShowSID():
-    ShowActualyWifiStatus("SID:",6)
+    if WifiReadInterfaceSeting()["wifi_mode"]=="AP" :
+        ShowActualyWifiStatus("SID:","ap_sid")
+    else:
+        ShowActualyWifiStatus("SID:","client_sid")
 
 def WifiShowType():
-    ShowActualyWifiStatus("Type:",8)
+    ShowActualyWifiStatus("Type:","wifi_mode")
 
 def WifiShowChannel():
-    ShowActualyWifiStatus("Cannel:",9)
+    ShowActualyWifiStatus("Cannel:","ap_channel")
 
 def WifiShowType():
-    ShowActualyWifiStatus("Forward:",10)
+    ShowActualyWifiStatus("Forward:","faorward")
 
 def WifiShowEnable():
-    ShowActualyWifiStatus("Enable:",11)
+    ShowActualyWifiStatus("Enable:","enable_wlan")
 
 def WifiShowDhcpd():
-    ShowActualyWifiStatus("DHCPD:",12)
+    ShowActualyWifiStatus("DHCPD:","enable_dhcpd")
 
 def WifiShowDhcpdRngeIP1():
-    ShowActualyWifiStatus("DHCPD IP from:",13)
+    ShowActualyWifiStatus("DHCPD IP from:","dhcpd_pool_ip1")
 
 def WifiShowDhcpdRngeIP2():
-    ShowActualyWifiStatus("DHCPD IP to:",14)
+    ShowActualyWifiStatus("DHCPD IP to:","dhcpd_pool_ip2")
 
 def WifiShowDhcpdNat():
-    ShowActualyWifiNat("NAT:",14)
+    ShowActualyWifiNat("NAT:","nat")
 
 def WifiShowState():
-    ShowActualyWifiStatus("State:",16)
+    ShowActualyWifiStatus("Connect:","client_connect")
 
 
 
@@ -862,80 +886,54 @@ def remoteQuote(text):
     if text[-1]=="\"" : text=text[:-1]
     return text
 
-def WifiReadInterfaceSeting():
-    ans={'ssid':'','psk':'','address':'','netmask':'','gateway':'','dns-nameservers':'','dhcp':''}
-    f = open('/etc/wpa_supplicant/wpa_supplicant.conf', 'r')
-    for line in f:
-	words=line.strip().split("=")
-	if len(words)<2 :continue
-	if words[0]=="ssid" : ans['ssid'] = remoteQuote(words[1])
-	if words[0]=="psk" :  ans['psk'] = remoteQuote(words[1])
-    f.close()
-    f = open('/etc/network/interfaces.d/wlan0', 'r')
-    for line in f:
-	words=line.strip().split(" ")
-	if words[0]=="address": ans['address'] = words[1]
-	if words[0]=="netmask": ans['netmask'] = words[1]
-	if words[0]=="gateway": ans['gateway'] = words[1]
-	if words[0]=="dns-nameservers": ans['dns-nameservers'] = words[1]
-	if words[0]=="iface": 
-	    if words[3]=="dhcp": ans['dhcp'] = True
-	    else: ans['dhcp'] = False
-    f.close()
-    return ans
 
 def WifiWriteInterfaceSeting(set):
-    f = open('/etc/network/interfaces.d/wlan0', 'w')
-    f.write("#wlan0_is_enable\n")
-    if set['dhcp']==False:
-	f.write("iface wlan0 inet static\n")
-	for key in set.keys():
-	    if key=="dhcp": continue
-	    if key=="ssid": continue
-	    if key=="psk": continue
-	    if set[key]=="": continue
-	    f.write("	%s %s\n" %(key, set[key]) )
-    else:
-	f.write("iface wlan0 inet dhcp\n")
-    f.write("	wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf\n")
-    f.close
-    f = open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w')
-    f.write("country=GB\n")
-    f.write("ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n")
-    f.write("update_config=1\n")
-    f.write("network={\n")
-    f.write("	ssid=\"%s\"\n" %set['ssid'])
-    if set['psk']=="":
-	f.write("	key_mgmt=NONE\n")
-    else :
-	f.write("	psk=\"%s\"\n" %set['psk'])
-    f.write("}\n")
-    f.close()
+    arg=""
+    for key in set.keys():
+        if key=="enable_wlan"    : arg=arg+" -W "+set[key]
+        if key=="static_ip"      : arg=arg+" -i "+set[key]
+        if key=="static_netmask" : arg=arg+" -n "+set[key]
+        if key=="static_gatevay" : arg=arg+" -g "+set[key]
+        if key=="static_dns"     : arg=arg+" -d "+set[key]
+        if key=="dhcp"           : arg=arg+" -I "+set[key]
+        if key=="ap_country"     : arg=arg+" -K "+set[key]
+        if key=="ap_sid"         : arg=arg+" -S "+set[key]
+        if key=="ap_psk"         : arg=arg+" -P "+set[key]
+        if key=="wifi_mode"      : arg=arg+" -A "+set[key]
+        if key=="ap_channel"     : arg=arg+" -c "+set[key]
+        if key=="forward"        : arg=arg+" -F "+set[key]
+        if key=="enable_dhcpd"   : arg=arg+" -D "+set[key]
+        if key=="dhcpd_pool_ip1" : arg=arg+" -a "+set[key]
+        if key=="dhcpd_pool_ip2" : arg=arg+" -b "+set[key]
+        if key=="nat"            : arg=arg+" -N "+set[key]
+    print ("/opt/seahu/setWifiSeting.sh"+arg)
+    subprocess.getoutput("/opt/seahu/setWifiSeting.sh"+arg)
 
 def WifiSetSID():
     set=WifiReadInterfaceSeting()
     lcd.clear();
     lcd.set_cursor(0,1)
     lcd.message("Plese wait:\nto scan wifi")
-    lines=commands.getoutput("/opt/seahu/scanWifi.sh").split("\n")
+    lines=subprocess.getoutput("/opt/seahu/scanWifi.sh").split("\n")
     list = []
     for line in lines:
-	line=line.split(";")
-	# 1234567890123456
-	# sidName   -99K
-	if len(line)!=7 : continue
-	sid=line[1]
-	strength=line[5]
-	encrypt=line[6]
-	print "sid", sid
-	print "strength", strength
-	print "encrypt", encrypt
-	ent=sid[:9]
-	ent += " "*(14-len(ent)-len(strength)-1)
-	ent += strength
-	if encrypt=="on": ent += "K"
-	else: ent += "F"
-	list.append([ent,sid,strength,encrypt])
+        line=line.split(";")
+        # 1234567890123456
+        # sidName   -99K
+        if len(line)!=7 : continue
+        sid=line[1]
+        strength=line[5]
+        encrypt=line[6]
+        print("sid", sid)
+        print("strength", strength)
+        print("encrypt", encrypt)
+        ent=sid[:9]
+        ent += " "*(14-len(ent)-len(strength)-1)
+        ent += strength
+        if encrypt=="on": ent += "K"
+        else: ent += "F"
+        list.append([ent,sid,strength,encrypt])
+    print(list)
     selector = ListSelector(list, lcd)
     cur = selector.Pick()
     # do something useful
@@ -943,61 +941,58 @@ def WifiSetSID():
     cur=cur[0] # slector.Pick return cursor as list with one item
     sid=list[cur][1]
     encrypt=list[cur][3]
-    print "list", list
+    print("list", list)
     passwd=""
     if (encrypt=="on"):
-	passwd=GetWord("Passowrd:",set['psk'])
-	if passwd==False : return False
-    set['ssid']=sid
-    set['psk']=passwd
-    WifiWriteInterfaceSeting(set)
+        passwd=GetWord("Passowrd:",set['psk'])
+        if passwd==False : return False
+    set['client_sid']=sid
+    set['client_psk']=passwd
+    #WifiWriteInterfaceSeting(set)
+    return set
 
 def WifiSetIPAddress():
     set=WifiReadInterfaceSeting()
-    print set
-    ip=set['address']
-    if ip=='': ip=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")[1]
+    print(set)
+    ip=set['static_ip']
+    if ip=='': ip=set['actual_ip']
     newIP=inputIP("IPaddress:",ip)
     if newIP==False: return
-    set['address']=newIP
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_ip']=newIP
+    print(set)
     WifiWriteInterfaceSeting(set)
 
 def WifiSetNetmask():
     set=WifiReadInterfaceSeting()
-    print set
-    netmask=set['netmask']
-    if netmask=='': netmask=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")[2]
+    print(set)
+    netmask=set['static_netmask']
+    if netmask=='': netmask=set['actual_netmask']
     newNetmask=inputIP("Netmask:",netmask)
     if newNetmask==False: return
-    set['netmask']=newNetmask
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['statuc_netmask']=newNetmask
+    print(set)
     WifiWriteInterfaceSeting(set)
     
 def WifiSetGateway():
     set=WifiReadInterfaceSeting()
-    print set
-    gateway=set['gateway']
-    if gateway=='': gateway=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")[3]
+    print(set)
+    gateway=set['static_gateway']
+    if gateway=='': gateway=set['actual_gateway']
     newGateway=inputIP("Gateway:",gateway)
     if newGateway==False: return
-    set['gateway']=newGateway
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_gateway']=newGateway
+    print(set)
     WifiWriteInterfaceSeting(set)
 
 def WifiSetDNS():
     set=WifiReadInterfaceSeting()
-    print set
-    dns=set['dns-nameservers']
-    if dns=='': dns=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")[4]
+    print(set)
+    dns=set['static_dns']
+    if dns=='': dns=set['actual_dns']
     newDNS=inputIP("DNS:",dns)
     if newDNS==False: return
-    set['dns-nameservers']=newDNS
-    set['dhcp']=checkOffDHCP(set)
-    print set
+    set['static_dnss']=newDNS
+    print(set)
     WifiWriteInterfaceSeting(set)
 
 def WifiSetDHCP():
@@ -1010,23 +1005,25 @@ def WifiSetDHCP():
     lcd.message("---------")
     change=True
     while 1:
-	if lcd.buttonPressed(lcd.LEFT):
-	    dhcp=False
-	    change=True
-	if lcd.buttonPressed(lcd.RIGHT):
-	    dhcp=True
-	    change=True
-	if lcd.buttonPressed(lcd.ESC):
-	    return False
-	if lcd.buttonPressed(lcd.SELECT):
-	    break
+        if lcd.buttonPressed(lcd.LEFT):
+            dhcp=0
+            change=True
+        if lcd.buttonPressed(lcd.RIGHT):
+            dhcp=1
+            change=True
+        if lcd.buttonPressed(lcd.ESC):
+            return False
+        if lcd.buttonPressed(lcd.SELECT):
+            break
         if change==True:
-	    lcd.set_cursor(0,2)
-	    lcd.message("NO ",not dhcp)
-	    lcd.set_cursor(5,2)
-	    lcd.message("YES",dhcp)
-	    change=False
-	sleep(0.15)
+            if dhcp==1: inversion=true
+            else: inversion=false
+            lcd.set_cursor(0,2)
+            lcd.message("NO ",not inversion)
+            lcd.set_cursor(5,2)
+            lcd.message("YES",inversion)
+            change=False
+        sleep(0.15)
     set['dhcp']=dhcp
     WifiWriteInterfaceSeting(set)
 
@@ -1035,165 +1032,67 @@ def WifiSetDHCP():
 #--------------------------------------------------------------------------------------------------------------
 
 def WifiInfo():
-    lines=commands.getoutput("/opt/seahu/getWifiSeting.sh").split("\n")
+    set=WifiReadInterfaceSeting()
+    print("SET:",set)
     lcd.clear()
     lcd.set_cursor(0,0)
-    lcd.message("Wi-Fi - "+lines[8] )
-    if lines[16]=="UP":
-	lcd.set_cursor(0,1)
-        lcd.message("IP:\n"+lines[1]+"/\n"+lines[2] )
+    lcd.message("Wi-Fi - "+set['wifi_mode'] )
+    if set["enable_wlan"]=='1' :
+        lcd.set_cursor(0,1)
+        lcd.message("IP:\n"+set['actual_ip']+"/\n"+set['actual_netmask'] )
     else:
-	lcd.set_cursor(0,2)
-	lcd.message("DOWN" )
+        lcd.set_cursor(0,2)
+        lcd.message("DOWN" )
     waitToAnyKey()
 
 
 def WifiSetCilentSID():
-    if WifiSetSID()==False : 
-	return False #set   set['ssid'], set['psk']
-    set=WifiReadInterfaceSeting()
-    set['dhcp']=True
+    #set=WifiReadInterfaceSeting()
+    set=WifiSetSID()
+    if set==False : 
+        return False #set   set['ssid'], set['psk']
+    set['enable_wlan']='1'
+    set['wifi_mode']="CLIENT"
+    set['dhcp']='1'
     lcd.clear()
     lcd.home()
-    lcd.message("STOP\nNETWORK\nPLEASE WAIT")
-    commands.getoutput("/sbin/ifdown wlan0")
-
+    lcd.message("RESTART\nWIFI\nPLEASE WAIT")
     WifiWriteInterfaceSeting(set)
-
-    # unset dhcpd
-    f = open("/etc/dnsmasq.d/dnsmasq-wlan0.conf", 'w')
-    f.write("#wlan0_is_enable\n")
-    f.write("interface=wlan0\n")
-    f.write("no-dhcp-interface=wlan0\n")
-    f.write("dhcp-range=192.168.128.50,192.168.128.200,12h\n")
-    f.close()
-
-    # unset forwarding
-    commands.getoutput("/sbin/sysctl -w net.ipv4.ip_forward=0")
-    commands.getoutput("/bin/sed -i 's/^net.ipv4.ip_forward=1/#net.ipv4.ip_forward=1/g' /etc/sysctl.conf")
-
-    # unset NAT
-    f = open("/etc/seahu/firewall.sh", 'w')
-    f.write("#!/bin/bash\n\n")
-    f.write("# set SEAHU firewall\n")
-    f.write("/sbin/iptables --flush\n")
-    f.write("/sbin/iptables --delete-chain\n")
-    f.write("/sbin/iptables --table nat --flush\n")
-    f.write("/sbin/iptables --table nat --delete-chain\n")
-    f.close()
-
-    lcd.clear()
-    lcd.home()
-    lcd.message("STARTING\nNETWORK\nPLEASE WAIT")
-    #lcd.set_cursor(0,1)
-
-    commands.getoutput("/opt/seahu/restartWifi.sh")
     lcd.clear()
     lcd.home()
     lcd.message("OK")
 
 def WifiSetApSID():
+    set=WifiReadInterfaceSeting()
 
-    f = open('/etc/hostapd/hostapd.conf', 'r')
-    for line in f:
-	words=line.strip().split("=")
-	if len(words)<2 :continue
-	if words[0]=="ssid" : SSID = words[1]
-	if words[0]=="wpa_passphrase" :  PSK = words[1]
-    f.close()
-
-    newSSID=GetWord("SSID:",SSID)
+    newSSID=GetWord("SSID:",set["ap_sid"])
     #newSSID=inputIP("SSID:","SSID")
     if newSSID==False:
-	commands.getoutput("/sbin/ifup wlan0")
-	return False #set   set['ssid'], set['psk']
-    newPSK=GetWord("PASSWORD:",PSK)
+        return False #set   set['ssid'], set['psk']
+    set["ap_sid"]=newSSID
+    newPSK=GetWord("PASSWORD:",set["ap_psk"])
     if newPSK==False:
-	commands.getoutput("/sbin/ifup wlan0")
-	return False #set   set['ssid'], set['psk']
-
+        return False #set   set['ssid'], set['psk']
+    set["ap_psk"]=newPSK
+    set['enable_wlan']='1'
+    set['wifi_mode']="AP"
+    set['dhcp']='0'
     lcd.clear()
     lcd.home()
-    lcd.message("STOP\nNETWORK\nPLEASE WAIT")
-
-    commands.getoutput("/sbin/ifdown wlan0")
-
-    # set interface
-    f = open('/etc/network/interfaces.d/wlan0', 'w')
-    f.write("#wlan0_is_enable\n")
-    f.write("allow-hotplug wlan0\n")
-    f.write("iface wlan0 inet static\n")
-    f.write("	address 192.168.128.1\n")
-    f.write("	netmask 255.255.255.0\n")
-    f.write("	hostapd /etc/hostapd/hostapd.conf\n")
-    f.close()
-
-    # set hostapd
-    f = open("/etc/hostapd/hostapd.conf", 'w')
-    f.write("interface=wlan0\n")
-    f.write("driver=nl80211\n")
-    f.write("ssid=%s\n" %newSSID)
-    f.write("hw_mode=g\n")
-    f.write("channel=6\n")
-    f.write("macaddr_acl=0\n")
-    f.write("ignore_broadcast_ssid=0\n")
-    f.write("auth_algs=1\n")
-    f.write("wpa=3\n")
-    f.write("wpa_passphrase=%s\n" %newPSK)
-    f.write("wpa_key_mgmt=WPA-PSK\n")
-    f.write("wpa_pairwise=TKIP\n")
-    f.write("rsn_pairwise=CCMP\n")
-    f.close()
-
-    # set dhcpd
-    f = open("/etc/dnsmasq.d/dnsmasq-wlan0.conf", 'w')
-    f.write("#wlan0_is_enable\n")
-    f.write("interface=wlan0\n")
-    f.write("dhcp-range=192.168.128.50,192.168.128.200,12h\n")
-    f.close()
-
-    # set forwarding
-    commands.getoutput("/sbin/sysctl -w net.ipv4.ip_forward=1")
-    commands.getoutput("/bin/sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf")
-
-    # set NAT
-    f = open("/etc/seahu/firewall.sh", 'w')
-    f.write("#!/bin/bash\n\n")
-    f.write("# set SEAHU firewall\n")
-    f.write("/sbin/iptables --flush\n")
-    f.write("/sbin/iptables --delete-chain\n")
-    f.write("/sbin/iptables --table nat --flush\n")
-    f.write("/sbin/iptables --table nat --delete-chain\n")
-    f.write("/sbin/iptables --table nat --append POSTROUTING ! --out-interface wlan0 -j MASQUERADE\n")
-    f.write("/sbin/iptables --append FORWARD --in-interface wlan0 -j ACCEPT\n")
-    f.close()
-
-    lcd.clear()
-    lcd.home()
-    lcd.message("STARTING\nNETWORK\nPLEASE WAIT")
-    #lcd.set_cursor(0,1)
-
-    commands.getoutput("/opt/seahu/restartWifi.sh")
+    lcd.message("RESTRT\nWIFI\nPLEASE WAIT")
+    WifiWriteInterfaceSeting(set)
     lcd.clear()
     lcd.home()
     lcd.message("OK")
 
 def DisableWifi():
+    
     lcd.clear()
     lcd.home()
     lcd.message("STOP\nNETWORK\nPLEASE WAIT")
+    set={'enable_wlan':'0'}
+    WifiWriteInterfaceSeting(set)
 
-    commands.getoutput("/sbin/ifdown wlan0")
-
-    f = open('/etc/network/interfaces.d/wlan0', 'w')
-    f.write("#wlan0_is_disable\n")
-    f.close
-
-    f = open('/etc/dnsmasq.d/dnsmasq-wlan0.conf', 'w')
-    f.write("#wlan0_is_disable\n")
-    f.close
-    
-    commands.getoutput("/opt/seahu/restartWifi.sh")
 
 #--------------------------------------------------------------------------------------------------------------
 #------------------------------------ OTHER FUNCTION (some example) ------------------------------------------
@@ -1210,7 +1109,7 @@ def Use10Network():
             break
         if lcd.buttonPressed(lcd.SELECT):
             # uncomment the following once you have a separate network defined
-            #commands.getoutput("sudo cp /etc/network/interfaces.hub.10 /etc/network/interfaces")
+            #subprocess.getoutput("sudo cp /etc/network/interfaces.hub.10 /etc/network/interfaces")
             lcd.clear()
             lcd.message('Please reboot')
             sleep(1.5)
@@ -1227,7 +1126,7 @@ def UseDHCP():
             break
         if lcd.buttonPressed(lcd.SELECT):
             # uncomment the following once you get an original copy in place
-            #commands.getoutput("sudo cp /etc/network/interfaces.orig /etc/network/interfaces")
+            #subprocess.getoutput("sudo cp /etc/network/interfaces.orig /etc/network/interfaces")
             lcd.clear()
             lcd.message('Please reboot')
             sleep(1.5)
@@ -1317,7 +1216,7 @@ def CameraTimeLapse():
 # Return the entered word, or None if they back out.
 def GetWord(title="",word="A"):
     if word=="":
-	word=" "
+        word=" "
     lcd.clear()
     lcd.home()
     lcd.message(title)
@@ -1325,7 +1224,7 @@ def GetWord(title="",word="A"):
     lcd.message("-"*len(title))
     curword = list()
     for c in word:
-	curword.append(c)
+        curword.append(c)
     curposition = 0
     change=True
     while 1:
@@ -1334,48 +1233,48 @@ def GetWord(title="",word="A"):
                 curword[curposition] = chr(ord(curword[curposition])+1)
             else:
                 curword[curposition] = chr(32)
-	    change=True
+            change=True
         if lcd.buttonPressed(lcd.DOWN):
             if (ord(curword[curposition]) > 32):
                 curword[curposition] = chr(ord(curword[curposition])-1)
             else:
                 curword[curposition] = chr(126)
-	    change=True
+            change=True
         if lcd.buttonPressed(lcd.RIGHT):
             if curposition < DISPLAY_COLS - 1:
                 if curposition == len(curword) - 1: curword.append('A')
                 curposition += 1
-	    change=True
+            change=True
         if lcd.buttonPressed(lcd.LEFT):
-	    if curposition >  0:
+            if curposition >  0:
                 curposition -= 1
-	    change=True
+            change=True
         if lcd.buttonPressed(lcd.ESC):
             return False
         if lcd.buttonPressed(lcd.SELECT):
             # return the word
             sleep(0.2)
             return ''.join(curword)
-	if change==True:
-    	    #lcd.home()
-	    lcd.set_cursor(0, 2)
-    	    lcd.message(''.join(curword))
-    	    lcd.set_cursor(curposition, 2)
-    	    lcd.message(curword[curposition],True)
-    	    #lcd.set_cursor(curposition, 2)
-	    change=False
+        if change==True:
+            #lcd.home()
+            lcd.set_cursor(0, 2)
+            lcd.message(''.join(curword))
+            lcd.set_cursor(curposition, 2)
+            lcd.message(curword[curposition],True)
+            #lcd.set_cursor(curposition, 2)
+            change=False
         sleep(lcd.buttonSleep)
 
 #wait toany key
 def waitToAnyKey():
     lcdstart = datetime.now()
     while 1:
-	if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.RIGHT) or lcd.buttonPressed(lcd.UP) or lcd.buttonPressed(lcd.DOWN) or lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ): break
+        if ( lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.RIGHT) or lcd.buttonPressed(lcd.UP) or lcd.buttonPressed(lcd.DOWN) or lcd.buttonPressed(lcd.SELECT) or lcd.buttonPressed(lcd.ESC) ): break
         if AUTO_OFF_LCD:
-	    lcdtmp = lcdstart + timedelta(seconds=30)
-	    if (datetime.now() > lcdtmp):
-		lcd.set_backlight(False)
-	sleep(0.15)
+            lcdtmp = lcdstart + timedelta(seconds=30)
+            if (datetime.now() > lcdtmp):
+                lcd.set_backlight(False)
+        sleep(0.15)
 
 
 # An example of how to get a word input from the UI, and then
@@ -1395,7 +1294,7 @@ class CommandToRun:
         self.text = myName
         self.commandToRun = theCommand
     def Run(self):
-        self.clist = split(commands.getoutput(self.commandToRun), '\n')
+        self.clist = split(subprocess.getoutput(self.commandToRun), '\n')
         if len(self.clist) > 0:
             lcd.clear()
             lcd.message(self.clist[0])
@@ -1602,7 +1501,7 @@ if DEBUG:
 lcdstart = datetime.now()
 while 1:
     if (lcd.buttonPressed(lcd.LEFT) or lcd.buttonPressed(lcd.ESC)):
-       	display.update('l')
+        display.update('l')
         display.display()
         sleep(0.25)
 

@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -13,16 +15,22 @@ namespace Tester;
  */
 class FileMock
 {
-	const PROTOCOL = 'mock';
+	private const PROTOCOL = 'mock';
 
 	/** @var string[] */
-	public static $files = array();
+	public static $files = [];
 
 	/** @var string */
 	private $content;
 
 	/** @var int */
-	private $pos;
+	private $readingPos;
+
+	/** @var int */
+	private $writingPos;
+
+	/** @var bool */
+	private $appendMode;
 
 	/** @var bool */
 	private $isReadable;
@@ -34,7 +42,7 @@ class FileMock
 	/**
 	 * @return string  file name
 	 */
-	public static function create($content, $extension = NULL)
+	public static function create(string $content = '', string $extension = null): string
 	{
 		self::register();
 
@@ -45,147 +53,170 @@ class FileMock
 	}
 
 
-	public static function register()
+	public static function register(): void
 	{
-		if (!in_array(self::PROTOCOL, stream_get_wrappers(), TRUE)) {
-			stream_wrapper_register(self::PROTOCOL, __CLASS__);
+		if (!in_array(self::PROTOCOL, stream_get_wrappers(), true)) {
+			stream_wrapper_register(self::PROTOCOL, self::class);
 		}
 	}
 
 
-	public function stream_open($path, $mode)
+	public function stream_open(string $path, string $mode): bool
 	{
 		if (!preg_match('#^([rwaxc]).*?(\+)?#', $mode, $m)) {
 			// Windows: failed to open stream: Bad file descriptor
 			// Linux: failed to open stream: Illegal seek
 			$this->warning("failed to open stream: Invalid mode '$mode'");
-			return FALSE;
+			return false;
 
 		} elseif ($m[1] === 'x' && isset(self::$files[$path])) {
 			$this->warning('failed to open stream: File exists');
-			return FALSE;
+			return false;
 
 		} elseif ($m[1] === 'r' && !isset(self::$files[$path])) {
 			$this->warning('failed to open stream: No such file or directory');
-			return FALSE;
+			return false;
 
 		} elseif ($m[1] === 'w' || $m[1] === 'x') {
 			self::$files[$path] = '';
 		}
 
-		$this->content = & self::$files[$path];
-		$this->pos = $m[1] === 'a' ? strlen($this->content) : 0;
-
+		$this->content = &self::$files[$path];
+		$this->content = (string) $this->content;
+		$this->appendMode = $m[1] === 'a';
+		$this->readingPos = 0;
+		$this->writingPos = $this->appendMode ? strlen($this->content) : 0;
 		$this->isReadable = isset($m[2]) || $m[1] === 'r';
 		$this->isWritable = isset($m[2]) || $m[1] !== 'r';
 
-		return TRUE;
+		return true;
 	}
 
 
-	public function stream_read($len)
+	public function stream_read(int $length)
 	{
 		if (!$this->isReadable) {
-			return '';
+			return false;
 		}
 
-		$res = substr($this->content, $this->pos, $len);
-		$this->pos += strlen($res);
-		return $res;
+		$result = substr($this->content, $this->readingPos, $length);
+		$this->readingPos += strlen($result);
+		$this->writingPos += $this->appendMode ? 0 : strlen($result);
+		return $result;
 	}
 
 
-	public function stream_write($data)
+	public function stream_write(string $data)
 	{
 		if (!$this->isWritable) {
-			return 0;
+			return false;
 		}
 
-		$this->content = substr($this->content, 0, $this->pos)
-			. str_repeat("\x00", max(0, $this->pos - strlen($this->content)))
-			. $data
-			. substr($this->content, $this->pos + strlen($data));
-		$this->pos += strlen($data);
-		return strlen($data);
+		$length = strlen($data);
+		$this->content = str_pad($this->content, $this->writingPos, "\x00");
+		$this->content = substr_replace($this->content, $data, $this->writingPos, $length);
+		$this->readingPos += $length;
+		$this->writingPos += $length;
+		return $length;
 	}
 
 
-	public function stream_tell()
+	public function stream_tell(): int
 	{
-		return $this->pos;
+		return $this->readingPos;
 	}
 
 
-	public function stream_eof()
+	public function stream_eof(): bool
 	{
-		return $this->pos >= strlen($this->content);
+		return $this->readingPos >= strlen($this->content);
 	}
 
 
-	public function stream_seek($offset, $whence)
+	public function stream_seek(int $offset, int $whence): bool
 	{
 		if ($whence === SEEK_CUR) {
-			$offset += $this->pos;
+			$offset += $this->readingPos;
 		} elseif ($whence === SEEK_END) {
 			$offset += strlen($this->content);
 		}
 		if ($offset >= 0) {
-			$this->pos = $offset;
-			return TRUE;
+			$this->readingPos = $offset;
+			$this->writingPos = $this->appendMode ? $this->writingPos : $offset;
+			return true;
 		} else {
-			return FALSE;
+			return false;
 		}
 	}
 
 
-	public function stream_truncate($size)
+	public function stream_truncate(int $size): bool
 	{
-		$this->content = (string) substr($this->content, 0, $size)
-			. str_repeat("\x00", max(0, $size - strlen($this->content)));
-		return TRUE;
+		if (!$this->isWritable) {
+			return false;
+		}
+
+		$this->content = substr(str_pad($this->content, $size, "\x00"), 0, $size);
+		$this->writingPos = $this->appendMode ? $size : $this->writingPos;
+		return true;
 	}
 
 
-	public function stream_stat()
+	public function stream_set_option(int $option, int $arg1, int $arg2): bool
 	{
-		return array('mode' => 0100666, 'size' => strlen($this->content));
+		return false;
 	}
 
 
-	public function url_stat($path, $flags)
+	public function stream_stat(): array
+	{
+		return ['mode' => 0100666, 'size' => strlen($this->content)];
+	}
+
+
+	public function url_stat(string $path, int $flags)
 	{
 		return isset(self::$files[$path])
-			? array('mode' => 0100666, 'size' => strlen(self::$files[$path]))
-			: FALSE;
+			? ['mode' => 0100666, 'size' => strlen(self::$files[$path])]
+			: false;
 	}
 
 
-	public function stream_lock($operation)
+	public function stream_lock(int $operation): bool
 	{
-		return FALSE;
+		return false;
 	}
 
 
-	public function unlink($path)
+	public function stream_metadata(string $path, int $option, $value): bool
+	{
+		switch ($option) {
+			case STREAM_META_TOUCH:
+				return true;
+		}
+		return false;
+	}
+
+
+	public function unlink(string $path): bool
 	{
 		if (isset(self::$files[$path])) {
 			unset(self::$files[$path]);
-			return TRUE;
+			return true;
 		}
 
 		$this->warning('No such file');
-		return FALSE;
+		return false;
 	}
 
 
-	private function warning($message)
+	private function warning(string $message): void
 	{
-		$bt = PHP_VERSION_ID < 50400 ? debug_backtrace(FALSE) : debug_backtrace(0, 3);
+		$bt = debug_backtrace(0, 3);
 		if (isset($bt[2]['function'])) {
 			$message = $bt[2]['function'] . '(' . @$bt[2]['args'][0] . '): ' . $message;
 		}
 
 		trigger_error($message, E_USER_WARNING);
 	}
-
 }

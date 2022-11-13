@@ -5,69 +5,69 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 use Nette;
 
 
 /**
- * Passwords tools. Requires PHP >= 5.3.7.
+ * Password Hashing.
  */
 class Passwords
 {
-	const BCRYPT_COST = 10;
+	use Nette\SmartObject;
+
+	/** @var int|string  string since PHP 7.4 */
+	private $algo;
+
+	/** @var array */
+	private $options;
 
 
 	/**
-	 * Computes salted password hash.
-	 * @param  string
-	 * @param  array with cost (4-31), salt (22 chars)
-	 * @return string  60 chars long
+	 * Chooses which secure algorithm is used for hashing and how to configure it.
+	 * @see https://php.net/manual/en/password.constants.php
 	 */
-	public static function hash($password, array $options = NULL)
+	public function __construct($algo = PASSWORD_DEFAULT, array $options = [])
 	{
-		$cost = isset($options['cost']) ? (int) $options['cost'] : self::BCRYPT_COST;
-		$salt = isset($options['salt']) ? (string) $options['salt'] : Nette\Utils\Random::generate(22, '0-9A-Za-z./');
+		$this->algo = $algo;
+		$this->options = $options;
+	}
 
-		if (PHP_VERSION_ID < 50307) {
-			throw new Nette\NotSupportedException(__METHOD__ . ' requires PHP >= 5.3.7.');
-		} elseif (($len = strlen($salt)) < 22) {
-			throw new Nette\InvalidArgumentException("Salt must be 22 characters long, $len given.");
-		} elseif ($cost < 4 || $cost > 31) {
-			throw new Nette\InvalidArgumentException("Cost must be in range 4-31, $cost given.");
+
+	/**
+	 * Computes password´s hash. The result contains the algorithm ID and its settings, cryptographical salt and the hash itself.
+	 */
+	public function hash(string $password): string
+	{
+		if ($password === '') {
+			throw new Nette\InvalidArgumentException('Password can not be empty.');
 		}
 
-		$hash = crypt($password, '$2y$' . ($cost < 10 ? 0 : '') . $cost . '$' . $salt);
-		if (strlen($hash) < 60) {
-			throw new Nette\InvalidStateException('Hash returned by crypt is invalid.');
+		$hash = @password_hash($password, $this->algo, $this->options); // @ is escalated to exception
+		if (!$hash) {
+			throw new Nette\InvalidStateException('Computed hash is invalid. ' . error_get_last()['message']);
 		}
 		return $hash;
 	}
 
 
 	/**
-	 * Verifies that a password matches a hash.
-	 * @return bool
+	 * Finds out, whether the given password matches the given hash.
 	 */
-	public static function verify($password, $hash)
+	public function verify(string $password, string $hash): bool
 	{
-		return preg_match('#^\$2y\$(?P<cost>\d\d)\$(?P<salt>.{22})#', $hash, $m)
-			&& $m['cost'] >= 4 && $m['cost'] <= 31
-			&& self::hash($password, $m) === $hash;
+		return password_verify($password, $hash);
 	}
 
 
 	/**
-	 * Checks if the given hash matches the options.
-	 * @param  string
-	 * @param  array with cost (4-31)
-	 * @return bool
+	 * Finds out if the hash matches the options given in constructor.
 	 */
-	public static function needsRehash($hash, array $options = NULL)
+	public function needsRehash(string $hash): bool
 	{
-		$cost = isset($options['cost']) ? (int) $options['cost'] : self::BCRYPT_COST;
-		return !preg_match('#^\$2y\$(?P<cost>\d\d)\$(?P<salt>.{22})#', $hash, $m)
-			|| $m['cost'] < $cost;
+		return password_needs_rehash($hash, $this->algo, $this->options);
 	}
-
 }

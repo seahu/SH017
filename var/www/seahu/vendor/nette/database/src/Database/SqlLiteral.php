@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -13,8 +15,10 @@ use Nette;
 /**
  * SQL literal value.
  */
-class SqlLiteral extends Nette\Object
+class SqlLiteral
 {
+	use Nette\SmartObject;
+
 	/** @var string */
 	private $value;
 
@@ -22,28 +26,21 @@ class SqlLiteral extends Nette\Object
 	private $parameters;
 
 
-	public function __construct($value, array $parameters = array())
+	public function __construct(string $value, array $parameters = [])
 	{
-		$this->value = (string) $value;
+		$this->value = $value;
 		$this->parameters = $parameters;
 	}
 
 
-	/**
-	 * @return array
-	 */
-	public function getParameters()
+	public function getParameters(): array
 	{
 		return $this->parameters;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function __toString()
+	public function __toString(): string
 	{
 		return $this->value;
 	}
-
 }

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -13,9 +15,14 @@ use Nette;
 /**
  * Sends emails via the SMTP server.
  */
-class SmtpMailer extends Nette\Object implements IMailer
+class SmtpMailer implements Mailer
 {
-	/** @var resource */
+	use Nette\SmartObject;
+
+	/** @var Signer|null */
+	private $signer;
+
+	/** @var resource|null */
 	private $connection;
 
 	/** @var string */
@@ -36,46 +43,79 @@ class SmtpMailer extends Nette\Object implements IMailer
 	/** @var int */
 	private $timeout;
 
+	/** @var resource */
+	private $context;
+
 	/** @var bool */
 	private $persistent;
 
+	/** @var string */
+	private $clientHost;
 
-	public function __construct(array $options = array())
+
+	public function __construct(array $options = [])
 	{
 		if (isset($options['host'])) {
 			$this->host = $options['host'];
-			$this->port = isset($options['port']) ? (int) $options['port'] : NULL;
+			$this->port = isset($options['port'])
+				? (int) $options['port']
+				: null;
 		} else {
 			$this->host = ini_get('SMTP');
 			$this->port = (int) ini_get('smtp_port');
 		}
-		$this->username = isset($options['username']) ? $options['username'] : '';
-		$this->password = isset($options['password']) ? $options['password'] : '';
-		$this->secure = isset($options['secure']) ? $options['secure'] : '';
-		$this->timeout = isset($options['timeout']) ? (int) $options['timeout'] : 20;
+		$this->username = $options['username'] ?? '';
+		$this->password = $options['password'] ?? '';
+		$this->secure = $options['secure'] ?? '';
+		$this->timeout = isset($options['timeout'])
+			? (int) $options['timeout']
+			: 20;
+		$this->context = isset($options['context'])
+			? stream_context_create($options['context'])
+			: stream_context_get_default();
 		if (!$this->port) {
 			$this->port = $this->secure === 'ssl' ? 465 : 25;
 		}
 		$this->persistent = !empty($options['persistent']);
+		if (isset($options['clientHost'])) {
+			$this->clientHost = $options['clientHost'];
+		} else {
+			$this->clientHost = isset($_SERVER['HTTP_HOST']) && preg_match('#^[\w.-]+$#D', $_SERVER['HTTP_HOST'])
+				? $_SERVER['HTTP_HOST']
+				: 'localhost';
+		}
+	}
+
+
+	/** @return static */
+	public function setSigner(Signer $signer): self
+	{
+		$this->signer = $signer;
+		return $this;
 	}
 
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws SmtpException
 	 */
-	public function send(Message $mail)
+	public function send(Message $mail): void
 	{
-		$mail = clone $mail;
+		$tmp = clone $mail;
+		$tmp->setHeader('Bcc', null);
+
+		$data = $this->signer
+			? $this->signer->generateSignedMessage($tmp)
+			: $tmp->generateMessage();
 
 		try {
 			if (!$this->connection) {
 				$this->connect();
 			}
 
-			if (($from = $mail->getHeader('Return-Path'))
-				|| ($from = key($mail->getHeader('From')))
+			if (
+				($from = $mail->getHeader('Return-Path'))
+				|| ($from = array_keys((array) $mail->getHeader('From'))[0] ?? null)
 			) {
 				$this->write("MAIL FROM:<$from>", 250);
 			}
@@ -85,11 +125,9 @@ class SmtpMailer extends Nette\Object implements IMailer
 				(array) $mail->getHeader('Cc'),
 				(array) $mail->getHeader('Bcc')
 			) as $email => $name) {
-				$this->write("RCPT TO:<$email>", array(250, 251));
+				$this->write("RCPT TO:<$email>", [250, 251]);
 			}
 
-			$mail->setHeader('Bcc', NULL);
-			$data = $mail->generateMessage();
 			$this->write('DATA', 354);
 			$data = preg_replace('#^\.#m', '..', $data);
 			$this->write($data);
@@ -110,67 +148,88 @@ class SmtpMailer extends Nette\Object implements IMailer
 
 	/**
 	 * Connects and authenticates to SMTP server.
-	 * @return void
 	 */
-	protected function connect()
+	protected function connect(): void
 	{
-		$this->connection = @stream_socket_client( // @ is escalated to exception
+		$this->connection = @stream_socket_client(// @ is escalated to exception
 			($this->secure === 'ssl' ? 'ssl://' : '') . $this->host . ':' . $this->port,
-			$errno, $error, $this->timeout
+			$errno,
+			$error,
+			$this->timeout,
+			STREAM_CLIENT_CONNECT,
+			$this->context
 		);
 		if (!$this->connection) {
-			throw new SmtpException($error, $errno);
+			throw new SmtpException($error ?: error_get_last()['message'], $errno);
 		}
 		stream_set_timeout($this->connection, $this->timeout, 0);
 		$this->read(); // greeting
 
-		$self = isset($_SERVER['HTTP_HOST']) && preg_match('#^[\w.-]+\z#', $_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
-		$this->write("EHLO $self");
-		if ((int) $this->read() !== 250) {
-			$this->write("HELO $self", 250);
-		}
-
 		if ($this->secure === 'tls') {
+			$this->write("EHLO $this->clientHost", 250);
 			$this->write('STARTTLS', 220);
-			if (!stream_socket_enable_crypto($this->connection, TRUE, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+			if (!stream_socket_enable_crypto(
+				$this->connection,
+				true,
+				STREAM_CRYPTO_METHOD_TLS_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT
+			)) {
 				throw new SmtpException('Unable to connect via TLS.');
 			}
-			$this->write("EHLO $self", 250);
+			$this->write("EHLO $this->clientHost");
+			$ehloResponse = $this->read();
+			if ((int) $ehloResponse !== 250) {
+				throw new SmtpException('SMTP server did not accept EHLO with error: ' . trim($ehloResponse));
+			}
+
+		} else {
+			$this->write("EHLO $this->clientHost");
+			$ehloResponse = $this->read();
+			if ((int) $ehloResponse !== 250) {
+				$this->write("HELO $this->clientHost", 250);
+			}
 		}
 
-		if ($this->username != NULL && $this->password != NULL) {
-			$this->write('AUTH LOGIN', 334);
-			$this->write(base64_encode($this->username), 334, 'username');
-			$this->write(base64_encode($this->password), 235, 'password');
+		if ($this->username !== '') {
+			$authMechanisms = [];
+			if (preg_match('~^250[ -]AUTH (.*)$~im', $ehloResponse, $matches)) {
+				$authMechanisms = explode(' ', trim($matches[1]));
+			}
+
+			if (in_array('PLAIN', $authMechanisms, true)) {
+				$credentials = $this->username . "\0" . $this->username . "\0" . $this->password;
+				$this->write('AUTH PLAIN ' . base64_encode($credentials), 235, 'PLAIN credentials');
+			} else {
+				$this->write('AUTH LOGIN', 334);
+				$this->write(base64_encode($this->username), 334, 'username');
+				if ($this->password !== '') {
+					$this->write(base64_encode($this->password), 235, 'password');
+				}
+			}
 		}
 	}
 
 
 	/**
 	 * Disconnects from SMTP server.
-	 * @return void
 	 */
-	protected function disconnect()
+	protected function disconnect(): void
 	{
 		fclose($this->connection);
-		$this->connection = NULL;
+		$this->connection = null;
 	}
 
 
 	/**
 	 * Writes data to server and checks response against expected code if some provided.
-	 * @param  string
-	 * @param  int   response code
-	 * @param  string  error message
-	 * @return void
+	 * @param  int|int[]  $expectedCode
 	 */
-	protected function write($line, $expectedCode = NULL, $message = NULL)
+	protected function write(string $line, $expectedCode = null, string $message = null): void
 	{
 		fwrite($this->connection, $line . Message::EOL);
 		if ($expectedCode) {
 			$response = $this->read();
-			if (!in_array((int) $response, (array) $expectedCode, TRUE)) {
-				throw new SmtpException('SMTP server did not accept ' . ($message ? $message : $line) . ' with error: ' . trim($response));
+			if (!in_array((int) $response, (array) $expectedCode, true)) {
+				throw new SmtpException('SMTP server did not accept ' . ($message ?: $line) . ' with error: ' . trim($response));
 			}
 		}
 	}
@@ -178,12 +237,11 @@ class SmtpMailer extends Nette\Object implements IMailer
 
 	/**
 	 * Reads response from server.
-	 * @return string
 	 */
-	protected function read()
+	protected function read(): string
 	{
 		$s = '';
-		while (($line = fgets($this->connection, 1e3)) != NULL) { // intentionally ==
+		while (($line = fgets($this->connection, 1000)) != null) { // intentionally ==
 			$s .= $line;
 			if (substr($line, 3, 1) === ' ') {
 				break;
@@ -191,5 +249,4 @@ class SmtpMailer extends Nette\Object implements IMailer
 		}
 		return $s;
 	}
-
 }

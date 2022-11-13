@@ -5,27 +5,14 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database\Table;
 
 use Nette\Database;
 
 
-/**
- * Row interface.
- */
+/** @deprecated use ActiveRow */
 interface IRow extends Database\IRow
 {
-
-	function setTable(Selection $name);
-
-	function getTable();
-
-	function getPrimary($need = TRUE);
-
-	function getSignature($need = TRUE);
-
-	function related($key, $throughColumn = NULL);
-
-	function ref($key, $throughColumn = NULL);
-
 }

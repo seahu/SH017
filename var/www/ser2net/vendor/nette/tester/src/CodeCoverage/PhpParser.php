@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * This file is part of the Nette Tester.
+ * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
+ */
+
+declare(strict_types=1);
+
 namespace Tester\CodeCoverage;
 
 
@@ -14,9 +21,6 @@ namespace Tester\CodeCoverage;
 class PhpParser
 {
 	/**
-	 * @param  string  PHP code to analyze
-	 * @return \stdClass
-	 *
 	 * Returned structure is:
 	 *     stdClass {
 	 *         linesOfCode: int,
@@ -47,55 +51,53 @@ class PhpParser
 	 *         visibility: public|protected|private
 	 *     }
 	 */
-	public function parse($code)
+	public function parse(string $code): \stdClass
 	{
-		$tokens = @token_get_all($code); // @ - source code can be written in newer PHP
+		$tokens = token_get_all($code, TOKEN_PARSE);
 
-		$level = $classLevel = $functionLevel = NULL;
+		$level = $classLevel = $functionLevel = null;
 		$namespace = '';
 		$line = 1;
 
-		$result = (object) array(
+		$result = (object) [
 			'linesOfCode' => max(1, substr_count($code, "\n")),
 			'linesOfComments' => 0,
-			'functions' => array(),
-			'classes' => array(),
-			'traits' => array(),
-			'interfaces' => array(),
-		);
+			'functions' => [],
+			'classes' => [],
+			'traits' => [],
+			'interfaces' => [],
+		];
 
-		$T_TRAIT = PHP_VERSION_ID < 50400 ? -1 : T_TRAIT;
-		while (list(, $token) = each($tokens)) {
+		while ($token = current($tokens)) {
+			next($tokens);
 			if (is_array($token)) {
-				if (PHP_VERSION_ID < 50400 && $token[0] === T_STRING && strcasecmp($token[1], 'trait') === 0) {
-					$token[0] = $T_TRAIT;
-				}
 				$line = $token[2];
 			}
 
 			switch (is_array($token) ? $token[0] : $token) {
 				case T_NAMESPACE:
-					$namespace = ltrim(self::fetch($tokens, array(T_STRING, T_NS_SEPARATOR)) . '\\', '\\');
+					$namespace = self::fetch($tokens, [T_STRING, PHP_VERSION_ID < 80000 ? T_NS_SEPARATOR : T_NAME_QUALIFIED]);
+					$namespace = ltrim($namespace . '\\', '\\');
 					break;
 
 				case T_CLASS:
 				case T_INTERFACE:
-				case $T_TRAIT:
+				case T_TRAIT:
 					if ($name = self::fetch($tokens, T_STRING)) {
 						if ($token[0] === T_CLASS) {
-							$class = & $result->classes[$namespace . $name];
+							$class = &$result->classes[$namespace . $name];
 						} elseif ($token[0] === T_INTERFACE) {
-							$class = & $result->interfaces[$namespace . $name];
+							$class = &$result->interfaces[$namespace . $name];
 						} else {
-							$class = & $result->traits[$namespace . $name];
+							$class = &$result->traits[$namespace . $name];
 						}
 
 						$classLevel = $level + 1;
-						$class = (object) array(
+						$class = (object) [
 							'start' => $line,
-							'end' => NULL,
-							'methods' => array(),
-						);
+							'end' => null,
+							'methods' => [],
+						];
 					}
 					break;
 
@@ -106,25 +108,25 @@ class PhpParser
 					break;
 
 				case T_ABSTRACT:
-					$isAbstract = TRUE;
+					$isAbstract = true;
 					break;
 
 				case T_FUNCTION:
 					if (($name = self::fetch($tokens, T_STRING)) && !isset($isAbstract)) {
 						if (isset($class) && $level === $classLevel) {
-							$function = & $class->methods[$name];
-							$function = (object) array(
+							$function = &$class->methods[$name];
+							$function = (object) [
 								'start' => $line,
-								'end' => NULL,
-								'visibility' => isset($visibility) ? $visibility : 'public',
-							);
+								'end' => null,
+								'visibility' => $visibility ?? 'public',
+							];
 
 						} else {
-							$function = & $result->functions[$namespace . $name];
-							$function = (object) array(
+							$function = &$result->functions[$namespace . $name];
+							$function = (object) [
 								'start' => $line,
-								'end' => NULL,
-							);
+								'end' => null,
+							];
 						}
 						$functionLevel = $level + 1;
 					}
@@ -165,19 +167,18 @@ class PhpParser
 	}
 
 
-	private static function fetch(& $tokens, $take)
+	private static function fetch(array &$tokens, $take): ?string
 	{
-		$res = NULL;
+		$res = null;
 		while ($token = current($tokens)) {
-			list($token, $s) = is_array($token) ? $token : array($token, $token);
-			if (in_array($token, (array) $take, TRUE)) {
+			[$token, $s] = is_array($token) ? $token : [$token, $token];
+			if (in_array($token, (array) $take, true)) {
 				$res .= $s;
-			} elseif (!in_array($token, array(T_DOC_COMMENT, T_WHITESPACE, T_COMMENT), TRUE)) {
+			} elseif (!in_array($token, [T_DOC_COMMENT, T_WHITESPACE, T_COMMENT], true)) {
 				break;
 			}
 			next($tokens);
 		}
 		return $res;
 	}
-
 }

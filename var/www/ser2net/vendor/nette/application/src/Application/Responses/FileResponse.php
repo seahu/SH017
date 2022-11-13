@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -13,8 +15,13 @@ use Nette;
 /**
  * File download response.
  */
-class FileResponse extends Nette\Object implements Nette\Application\IResponse
+final class FileResponse implements Nette\Application\Response
 {
+	use Nette\SmartObject;
+
+	/** @var bool */
+	public $resuming = true;
+
 	/** @var string */
 	private $file;
 
@@ -25,35 +32,30 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 	private $name;
 
 	/** @var bool */
-	public $resuming = TRUE;
-
-	/** @var bool */
 	private $forceDownload;
 
 
-	/**
-	 * @param  string  file path
-	 * @param  string  imposed file name
-	 * @param  string  MIME content type
-	 */
-	public function __construct($file, $name = NULL, $contentType = NULL, $forceDownload = TRUE)
-	{
-		if (!is_file($file)) {
-			throw new Nette\Application\BadRequestException("File '$file' doesn't exist.");
+	public function __construct(
+		string $file,
+		?string $name = null,
+		?string $contentType = null,
+		bool $forceDownload = true
+	) {
+		if (!is_file($file) || !is_readable($file)) {
+			throw new Nette\Application\BadRequestException("File '$file' doesn't exist or is not readable.");
 		}
 
 		$this->file = $file;
-		$this->name = $name ? $name : basename($file);
-		$this->contentType = $contentType ? $contentType : 'application/octet-stream';
+		$this->name = $name ?? basename($file);
+		$this->contentType = $contentType ?: 'application/octet-stream';
 		$this->forceDownload = $forceDownload;
 	}
 
 
 	/**
 	 * Returns the path to a downloaded file.
-	 * @return string
 	 */
-	public function getFile()
+	public function getFile(): string
 	{
 		return $this->file;
 	}
@@ -61,9 +63,8 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 
 	/**
 	 * Returns the file name.
-	 * @return string
 	 */
-	public function getName()
+	public function getName(): string
 	{
 		return $this->name;
 	}
@@ -71,9 +72,8 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 
 	/**
 	 * Returns the MIME content type of a downloaded file.
-	 * @return string
 	 */
-	public function getContentType()
+	public function getContentType(): string
 	{
 		return $this->contentType;
 	}
@@ -81,23 +81,27 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	{
 		$httpResponse->setContentType($this->contentType);
-		$httpResponse->setHeader('Content-Disposition',
+		$httpResponse->setHeader(
+			'Content-Disposition',
 			($this->forceDownload ? 'attachment' : 'inline')
 				. '; filename="' . $this->name . '"'
-				. '; filename*=utf-8\'\'' . rawurlencode($this->name));
+				. '; filename*=utf-8\'\'' . rawurlencode($this->name)
+		);
 
 		$filesize = $length = filesize($this->file);
 		$handle = fopen($this->file, 'r');
+		if (!$handle) {
+			throw new Nette\Application\BadRequestException("Cannot open file: '{$this->file}'.");
+		}
 
 		if ($this->resuming) {
 			$httpResponse->setHeader('Accept-Ranges', 'bytes');
-			if (preg_match('#^bytes=(\d*)-(\d*)\z#', $httpRequest->getHeader('Range'), $matches)) {
-				list(, $start, $end) = $matches;
+			if (preg_match('#^bytes=(\d*)-(\d*)$#D', (string) $httpRequest->getHeader('Range'), $matches)) {
+				[, $start, $end] = $matches;
 				if ($start === '') {
 					$start = max(0, $filesize - $end);
 					$end = $filesize - 1;
@@ -105,6 +109,7 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 				} elseif ($end === '' || $end > $filesize - 1) {
 					$end = $filesize - 1;
 				}
+
 				if ($end < $start) {
 					$httpResponse->setCode(416); // requested range not satisfiable
 					return;
@@ -113,19 +118,19 @@ class FileResponse extends Nette\Object implements Nette\Application\IResponse
 				$httpResponse->setCode(206);
 				$httpResponse->setHeader('Content-Range', 'bytes ' . $start . '-' . $end . '/' . $filesize);
 				$length = $end - $start + 1;
-				fseek($handle, $start);
+				fseek($handle, (int) $start);
 
 			} else {
 				$httpResponse->setHeader('Content-Range', 'bytes 0-' . ($filesize - 1) . '/' . $filesize);
 			}
 		}
 
-		$httpResponse->setHeader('Content-Length', $length);
+		$httpResponse->setHeader('Content-Length', (string) $length);
 		while (!feof($handle) && $length > 0) {
-			echo $s = fread($handle, min(4e6, $length));
+			echo $s = fread($handle, min(4000000, $length));
 			$length -= strlen($s);
 		}
+
 		fclose($handle);
 	}
-
 }
