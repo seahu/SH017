@@ -1,0 +1,10 @@
+[Unit]
+Description=Service create small lcd menu for control Seahu SH017 (home automation computer)
+Requires=beep.service graph_lcd.service
+After=multi-user.target beep.service graph_lcd.service
+
+[Service]
+ExecStart=/opt/seahu/lcd/lcd_menu/lcdmenu.py
+
+[Install]
+WantedBy=multi-user.target

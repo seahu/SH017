@@ -1,0 +1,8 @@
+[Unit]
+Description=Service enable print to graph LCD on Seahu SH017 module
+
+[Service]
+ExecStart=/opt/seahu/lcd/graph_lcd_service.py
+
+[Install]
+WantedBy=multi-user.target

@@ -43,11 +43,16 @@ Update() {
     rm -R -d /home/pi/SH017/etc
     mkdir /home/pi/SH017/etc
     sudo cp /etc/rc.local /home/pi/SH017/etc/
+    #/lib/systemd/system
+    rm -R -d /home/pi/SH017/lib
+    mkdir /home/pi/SH017/lib
+    mkdir /home/pi/SH017/lib/systemd
+    mkdir /home/pi/SH017/lib/systemd/system
+    sudo cp /lib/systemd/system/beep.service /home/pi/SH017/lib/systemd/system/
+    sudo cp /lib/systemd/system/graph_lcd.service /home/pi/SH017/lib/systemd/system/
+    sudo cp /lib/systemd/system/lcd_menu.service /home/pi/SH017/lib/systemd/system/
     #/etc/init.d
     mkdir /home/pi/SH017/etc/init.d
-    sudo cp /etc/init.d/beeper /home/pi/SH017/etc/init.d/
-    sudo cp /etc/init.d/graph_lcd /home/pi/SH017/etc/init.d/
-    sudo cp /etc/init.d/lcd_menu /home/pi/SH017/etc/init.d/
     sudo cp /etc/init.d/rflink /home/pi/SH017/etc/init.d/
     sudo cp /etc/init.d/rfx433MHz /home/pi/SH017/etc/init.d/
     #network				(dhcpd.conf.orig is used by my scripts for create final dhcpcd.conf)

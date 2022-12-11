@@ -1,0 +1,8 @@
+[Unit]
+Description=Service for PLC compuer Seahu SH017 this service emlation non exist beeper on lcd board of SH017
+
+[Service]
+ExecStart=/opt/seahu/lcd/beep_service.py
+
+[Install]
+WantedBy=multi-user.target

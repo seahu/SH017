@@ -19,7 +19,7 @@ from MyListSelector import ListSelector
 
 import smbus
 
-configfile = '/opt/seahu/lcd_menu/lcdmenu.xml'
+configfile = '/opt/seahu/lcd/lcd_menu/lcdmenu.xml'
 # set DEBUG=1 for print debug statements
 DEBUG = 0
 DISPLAY_ROWS = 4

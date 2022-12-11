@@ -83,7 +83,7 @@ def lcd_init():
    lcd_tranfer_data(0xaf,0);
    lcd_clear()
 
-def image(filename="/opt/seahu/lcd_images/logo.tif"):
+def image(filename="/opt/seahu/lcd/lcd_images/logo.tif"):
 	print ("filename", filename)
 	im=Image.open(filename)
 	col, row = im.size
@@ -166,7 +166,7 @@ def start_server(port=10000):
 					if len(data)<3: image() #show default logo
 					else:
 						filename=data[2:]
-						filename="/opt/seahu/lcd_images/"+filename
+						filename="/opt/seahu/lcd/lcd_images/"+filename
 						image(filename)
 				elif data[0]=='g' : # get (return) content of framebuffer
 					print("send framebuffer:")
